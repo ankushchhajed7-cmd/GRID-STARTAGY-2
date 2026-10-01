@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ff4f9a">
+<meta name="description" content="GRID 2 — GridTrend S2 EA live monitor">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="GRID 2">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<title>GRID 2</title>
+<!--
+  GRID 2 — GridTrend EA Strategy 2 ka mobile monitor (PWA)
+  v1.0.0  (2026-10-01)  pehla build
+   - EA v1.03 bridge se Firebase /gt2/{account} padhta hai (live / events / cycles)
+   - Tabs: HOME · GRID · RISK · HISTORY · SETUP
+   - White + Pink mirror-finish theme, offline cache, install as app
+-->
+<style>
+:root{
+  --pk:#ff4f9a; --pk2:#e91e63; --pk3:#c2185b; --pkS:#ffb3d4; --pkL:#ffe6f1; --pkXL:#fff4f9;
+  --ink:#3b1a2e; --ink2:#5d3a4e; --mut:#9a7387; --line:rgba(233,30,99,.12);
+  --g:#0e9f6e; --gL:#e3f7ef; --r:#d7263d; --rL:#fde6e9; --am:#d98200; --amL:#fff3dc;
+  --rad:20px;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:'Poppins',system-ui,sans-serif;color:var(--ink);font-size:14px;
+  background:
+    radial-gradient(900px 520px at -10% -8%,#ffd3e8 0%,rgba(255,211,232,0) 60%),
+    radial-gradient(700px 480px at 115% 18%,#ffe3f0 0%,rgba(255,227,240,0) 60%),
+    radial-gradient(800px 600px at 50% 120%,#ffe0ee 0%,rgba(255,224,238,0) 60%),
+    linear-gradient(180deg,#ffffff 0%,#fff7fb 100%);
+  background-attachment:fixed;min-height:100vh;overflow-x:hidden;
+}
+#app{max-width:520px;margin:0 auto;padding:0 14px calc(92px + env(safe-area-inset-bottom))}
+.mono{font-family:var(--mono);letter-spacing:-.2px}
+.pos{color:var(--g)!important}.neg{color:var(--r)!important}.mutd{color:var(--mut)}
+
+/* ---------- header ---------- */
+.top{position:sticky;top:0;z-index:20;margin:0 -14px;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+  background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(255,247,251,.78));
+  backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);
+  border-bottom:1px solid rgba(255,255,255,.9);box-shadow:0 8px 24px -16px rgba(214,40,120,.35)}
+.toprow{display:flex;align-items:center;gap:10px}
+.logo{display:flex;align-items:center;gap:6px;font-weight:800;font-size:24px;letter-spacing:1px;line-height:1}
+.logo .gtxt{background:linear-gradient(180deg,#ff9fca 0%,#ff4f9a 42%,#b3125a 52%,#ff6fae 78%,#ffc2dd 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 1px 0 #fff)}
+.logo .two{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:10px;color:#fff;font-size:18px;
+  background:linear-gradient(145deg,#ffa6cf 0%,#ff4f9a 45%,#d81b60 55%,#ff86bd 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8),inset 0 -2px 4px rgba(150,0,60,.25),0 4px 10px rgba(233,30,99,.35);position:relative;overflow:hidden}
+.logo .two::after{content:"";position:absolute;inset:0 0 50% 0;background:linear-gradient(180deg,rgba(255,255,255,.65),rgba(255,255,255,0))}
+.sub{font-size:10.5px;color:var(--mut);font-weight:500;letter-spacing:.3px;margin-top:2px}
+.sp{flex:1}
+.ibtn{width:38px;height:38px;border-radius:12px;border:1px solid #fff;display:grid;place-items:center;color:var(--pk2);
+  background:linear-gradient(160deg,#fff 0%,#ffeef6 100%);box-shadow:0 4px 12px -4px rgba(214,40,120,.35),inset 0 1px 0 #fff;cursor:pointer}
+.ibtn:active{transform:scale(.94)}
+.ibtn.spin svg{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.statusbar{display:flex;align-items:center;gap:8px;margin-top:9px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:600;letter-spacing:.3px;
+  background:linear-gradient(180deg,#fff,#fff0f6);border:1px solid rgba(255,79,154,.18);color:var(--ink2);white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#bbb;box-shadow:0 0 0 3px rgba(0,0,0,.05)}
+.dot.live{background:var(--g);box-shadow:0 0 0 3px rgba(14,159,110,.18);animation:pulse 1.6s ease-in-out infinite}
+.dot.stale{background:var(--am);box-shadow:0 0 0 3px rgba(217,130,0,.18)}
+.dot.off{background:var(--r);box-shadow:0 0 0 3px rgba(215,38,61,.15)}
+@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(14,159,110,.05)}}
+.pill.st-run{color:#fff;border-color:transparent;background:linear-gradient(135deg,#ff86bd,#e91e63)}
+.pill.st-warn{color:#7a4a00;background:linear-gradient(180deg,#fff8e8,#ffecc2);border-color:#ffd88a}
+.pill.st-bad{color:#fff;border-color:transparent;background:linear-gradient(135deg,#ff6b7d,#d7263d)}
+.acctchips{display:flex;gap:6px;overflow-x:auto;margin-top:8px;scrollbar-width:none}
+.acctchips::-webkit-scrollbar{display:none}
+.chip{padding:5px 11px;border-radius:99px;font-size:11.5px;font-weight:600;border:1px solid rgba(255,79,154,.22);background:#fff;color:var(--ink2);cursor:pointer;white-space:nowrap}
+.chip.on{color:#fff;border-color:transparent;background:linear-gradient(135deg,#ff86bd,#e91e63);box-shadow:0 4px 10px -3px rgba(233,30,99,.5)}
+
+.banner{margin:10px 0 0;padding:10px 12px;border-radius:14px;font-size:12.5px;font-weight:500;line-height:1.45;display:none}
+.banner.show{display:block}
+.banner.warn{background:linear-gradient(180deg,#fff8e8,#fff0d2);color:#7a4a00;border:1px solid #ffd88a}
+.banner.err{background:linear-gradient(180deg,#fff0f2,#ffe1e6);color:#9b1c2e;border:1px solid #ffbcc6}
+.banner.info{background:linear-gradient(180deg,#fff,#ffeef6);color:var(--ink2);border:1px solid rgba(255,79,154,.25)}
+body.isstale main{filter:grayscale(.55);opacity:.72}
+
+/* ---------- mirror card ---------- */
+.card{position:relative;overflow:hidden;border-radius:var(--rad);padding:14px 14px 13px;margin-top:12px;isolation:isolate;
+  background:linear-gradient(155deg,rgba(255,255,255,.98) 0%,rgba(255,246,250,.92) 50%,rgba(255,234,244,.94) 100%);
+  border:1px solid rgba(255,255,255,.95);
+  box-shadow:inset 0 1px 0 #fff,inset 0 -1px 0 rgba(233,30,99,.07),0 14px 30px -18px rgba(214,40,120,.42),0 2px 6px rgba(214,40,120,.05)}
+.card::before{content:"";position:absolute;left:0;right:0;top:0;height:48%;z-index:-1;border-radius:var(--rad) var(--rad) 0 0;
+  background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(255,255,255,0))}
+.card::after,.hero::after{content:"";position:absolute;top:-60%;left:-70%;width:38%;height:220%;z-index:2;pointer-events:none;
+  background:linear-gradient(100deg,rgba(255,255,255,0),rgba(255,255,255,.55),rgba(255,255,255,0));transform:rotate(16deg);
+  animation:sheen 8s ease-in-out infinite}
+@keyframes sheen{0%,62%{left:-70%}100%{left:140%}}
+.ch{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.ch h3{font-size:12px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;color:var(--pk3)}
+.ch .tag{margin-left:auto}
+.tag{font-size:10.5px;font-weight:700;letter-spacing:.5px;padding:3px 8px;border-radius:8px;background:var(--pkL);color:var(--pk3)}
+.tag.g{background:var(--gL);color:var(--g)}.tag.r{background:var(--rL);color:var(--r)}.tag.a{background:var(--amL);color:var(--am)}.tag.n{background:#f3edf0;color:var(--mut)}
+
+/* hero (chrome pink) */
+.hero{position:relative;overflow:hidden;border-radius:24px;margin-top:12px;padding:16px 16px 14px;color:#fff;isolation:isolate;
+  background:linear-gradient(135deg,#ff9ccb 0%,#ff5aa2 30%,#e91e63 58%,#c2185b 72%,#ff73b1 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 -10px 30px rgba(120,0,50,.18),0 18px 34px -16px rgba(200,20,100,.6)}
+.hero::before{content:"";position:absolute;left:0;right:0;top:0;height:50%;z-index:-1;
+  background:linear-gradient(180deg,rgba(255,255,255,.42),rgba(255,255,255,.06))}
+.hero .lbl{font-size:11px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;opacity:.92}
+.hero .big{font-family:var(--mono);font-size:34px;font-weight:700;line-height:1.15;margin-top:2px;text-shadow:0 2px 8px rgba(120,0,50,.25)}
+.hero .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.hero .mini{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);border-radius:14px;padding:8px 9px;backdrop-filter:blur(4px)}
+.hero .mini b{display:block;font-family:var(--mono);font-size:14px;margin-top:1px}
+.hero .mini span{font-size:10px;letter-spacing:.6px;opacity:.9;text-transform:uppercase;font-weight:600}
+.hero .delta{display:inline-block;margin-top:4px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.22)}
+
+/* grids & kv */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tile{border-radius:14px;padding:9px 10px;background:linear-gradient(180deg,#fff,#fff3f8);border:1px solid rgba(255,79,154,.13);box-shadow:inset 0 1px 0 #fff}
+.tile span{display:block;font-size:10px;font-weight:600;color:var(--mut);letter-spacing:.6px;text-transform:uppercase}
+.tile b{display:block;font-family:var(--mono);font-size:15px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile small{display:block;font-size:10.5px;color:var(--mut);margin-top:1px}
+.kv{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.kv:last-child{border-bottom:0}
+.kv span{color:var(--mut);font-weight:500}
+.kv b{font-family:var(--mono);font-weight:700;text-align:right}
+
+/* bars */
+.bar{height:10px;border-radius:99px;background:#f6e6ee;overflow:hidden;box-shadow:inset 0 1px 2px rgba(150,0,60,.12)}
+.bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#ffa6cf,#ff4f9a,#e91e63);box-shadow:inset 0 1px 0 rgba(255,255,255,.6);transition:width .6s}
+.bar.g i{background:linear-gradient(90deg,#7fe0b8,#0e9f6e)}
+.bar.a i{background:linear-gradient(90deg,#ffd27a,#e08a00)}
+.bar.r i{background:linear-gradient(90deg,#ff9aa8,#d7263d)}
+.barlbl{display:flex;justify-content:space-between;font-size:11.5px;color:var(--mut);margin:8px 0 5px;font-weight:500}
+.barlbl b{color:var(--ink);font-family:var(--mono)}
+
+/* signal */
+.sigbox{display:flex;align-items:center;gap:12px}
+.sigbig{width:64px;height:64px;border-radius:18px;display:grid;place-items:center;font-weight:800;font-size:15px;color:#fff;flex:none;position:relative;overflow:hidden;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 8px 18px -8px rgba(0,0,0,.35)}
+.sigbig::after{content:"";position:absolute;inset:0 0 52% 0;background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,0))}
+.sigbig.buy{background:linear-gradient(150deg,#4fd6a0,#0e9f6e 60%,#0a7a54)}
+.sigbig.sell{background:linear-gradient(150deg,#ff8a9a,#d7263d 60%,#a3162a)}
+.sigbig.none{background:linear-gradient(150deg,#d9c6d0,#9a7387)}
+
+/* side cards */
+.side{border-radius:16px;padding:11px;background:linear-gradient(180deg,#fff,#fff5f9);border:1px solid rgba(255,79,154,.14)}
+.side .sh{display:flex;align-items:center;gap:6px;font-weight:700;font-size:13px}
+.side .sh .tag{margin-left:auto}
+.side .pnl{font-family:var(--mono);font-size:19px;font-weight:700;margin:5px 0 2px}
+.side small{font-size:11px;color:var(--mut)}
+.arrowB{color:var(--g)}.arrowS{color:var(--r)}
+
+/* positions */
+.ptable{width:100%;border-collapse:collapse;font-size:12px}
+.ptable th{font-size:10px;color:var(--mut);font-weight:600;letter-spacing:.5px;text-transform:uppercase;text-align:left;padding:4px 4px 6px;border-bottom:1px solid var(--line)}
+.ptable td{padding:7px 4px;border-bottom:1px dashed var(--line);font-family:var(--mono);white-space:nowrap}
+.ptable td:last-child,.ptable th:last-child{text-align:right}
+.lv{display:inline-grid;place-items:center;min-width:30px;height:22px;padding:0 5px;border-radius:7px;font-size:11px;font-weight:700;color:#fff}
+.lv.b{background:linear-gradient(150deg,#4fd6a0,#0e9f6e)}.lv.s{background:linear-gradient(150deg,#ff8a9a,#d7263d)}
+
+/* chart */
+.chart{width:100%;height:150px;display:block}
+.legend{display:flex;justify-content:space-between;font-size:10.5px;color:var(--mut);margin-top:4px}
+
+/* filter grid */
+.fgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.fbox{border-radius:13px;padding:9px 6px;text-align:center;font-size:11px;font-weight:700;letter-spacing:.4px;border:1px solid transparent}
+.fbox span{display:block;font-size:9.5px;font-weight:600;letter-spacing:.8px;opacity:.75;margin-bottom:3px;text-transform:uppercase}
+.fbox.ok{background:linear-gradient(180deg,#f0fbf6,#ddf5ea);color:var(--g);border-color:#bfead6}
+.fbox.bad{background:linear-gradient(180deg,#fff0f2,#ffdde3);color:var(--r);border-color:#ffc0ca}
+.fbox.off{background:linear-gradient(180deg,#faf6f8,#f1e9ed);color:var(--mut);border-color:#eadde3}
+
+/* feed */
+.feed{list-style:none}
+.feed li{display:flex;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line)}
+.feed li:last-child{border-bottom:0}
+.fi{width:34px;height:34px;border-radius:11px;flex:none;display:grid;place-items:center;font-size:16px;
+  background:linear-gradient(160deg,#fff,#ffe6f1);border:1px solid rgba(255,79,154,.2);box-shadow:inset 0 1px 0 #fff}
+.fb{flex:1;min-width:0}
+.fb .ft{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--mut);font-weight:600}
+.fb .fm{font-size:12.5px;margin-top:2px;line-height:1.4;word-wrap:break-word}
+.filters{display:flex;gap:6px;overflow-x:auto;margin-bottom:8px;scrollbar-width:none}
+.filters::-webkit-scrollbar{display:none}
+.filters .chip{font-size:11px;padding:4px 10px}
+
+/* ring */
+.ring{width:92px;height:92px;flex:none}
+.flexc{display:flex;align-items:center;gap:14px}
+
+/* forms */
+.fld{margin-bottom:11px}
+.fld label{display:block;font-size:11px;font-weight:600;color:var(--mut);letter-spacing:.5px;margin-bottom:4px;text-transform:uppercase}
+.fld input,.fld select{width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,79,154,.25);background:#fff;font:inherit;font-size:13.5px;color:var(--ink);outline:none}
+.fld input:focus,.fld select:focus{border-color:var(--pk);box-shadow:0 0 0 3px rgba(255,79,154,.15)}
+.fld .hint{font-size:11px;color:var(--mut);margin-top:4px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 16px;border-radius:13px;border:0;font:inherit;font-weight:700;font-size:13px;cursor:pointer;
+  color:#fff;background:linear-gradient(145deg,#ff8cc0 0%,#ff4f9a 45%,#e91e63 70%,#ff73b1 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 8px 18px -8px rgba(233,30,99,.65);position:relative;overflow:hidden}
+.btn::after{content:"";position:absolute;inset:0 0 55% 0;background:linear-gradient(180deg,rgba(255,255,255,.45),rgba(255,255,255,0))}
+.btn.ghost{color:var(--pk3);background:linear-gradient(180deg,#fff,#ffeef6);box-shadow:inset 0 1px 0 #fff,0 4px 12px -6px rgba(233,30,99,.4);border:1px solid rgba(255,79,154,.2)}
+.btn:active{transform:scale(.97)}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.toggle{display:flex;align-items:center;justify-content:space-between;padding:8px 0;font-size:13px;font-weight:500}
+.sw{position:relative;width:46px;height:27px;flex:none}
+.sw input{opacity:0;width:0;height:0}
+.sw i{position:absolute;inset:0;border-radius:99px;background:#eadde3;transition:.2s;box-shadow:inset 0 1px 3px rgba(0,0,0,.12)}
+.sw i::before{content:"";position:absolute;width:21px;height:21px;left:3px;top:3px;border-radius:50%;background:linear-gradient(180deg,#fff,#f4f4f4);box-shadow:0 2px 4px rgba(0,0,0,.2);transition:.2s}
+.sw input:checked+i{background:linear-gradient(135deg,#ff86bd,#e91e63)}
+.sw input:checked+i::before{transform:translateX(19px)}
+pre.code{font-family:var(--mono);font-size:11.5px;background:#2b1424;color:#ffd3e8;padding:10px 12px;border-radius:12px;overflow-x:auto;margin-top:6px;line-height:1.5}
+.small{font-size:12px;color:var(--ink2);line-height:1.55}
+.small ol{padding-left:18px}.small li{margin:3px 0}
+.tbl2{width:100%;border-collapse:collapse;font-size:11.5px;font-family:var(--mono)}
+.tbl2 td,.tbl2 th{padding:5px 4px;border-bottom:1px dashed var(--line);text-align:center}
+.tbl2 th{font-family:'Poppins';font-size:10px;color:var(--mut);text-transform:uppercase}
+.empty{text-align:center;color:var(--mut);font-size:12.5px;padding:14px 4px}
+.foot{text-align:center;font-size:10.5px;color:var(--mut);margin:16px 0 4px}
+
+/* bottom nav */
+.bnav{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom));z-index:30;width:calc(100% - 20px);max-width:500px;
+  display:grid;grid-template-columns:repeat(5,1fr);padding:6px;border-radius:22px;
+  background:linear-gradient(180deg,rgba(255,255,255,.94),rgba(255,240,247,.9));backdrop-filter:blur(16px) saturate(1.5);-webkit-backdrop-filter:blur(16px) saturate(1.5);
+  border:1px solid rgba(255,255,255,.95);box-shadow:inset 0 1px 0 #fff,0 14px 34px -12px rgba(214,40,120,.45)}
+.bnav button{border:0;background:none;font:inherit;font-size:10px;font-weight:700;letter-spacing:.6px;color:var(--mut);display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 0 6px;border-radius:16px;cursor:pointer;position:relative;overflow:hidden}
+.bnav button svg{width:21px;height:21px}
+.bnav button.on{color:#fff;background:linear-gradient(145deg,#ff9ccb 0%,#ff4f9a 45%,#e91e63 75%,#ff7ab5 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 6px 14px -6px rgba(233,30,99,.7)}
+.bnav button.on::after{content:"";position:absolute;inset:0 0 55% 0;background:linear-gradient(180deg,rgba(255,255,255,.45),rgba(255,255,255,0))}
+.view{display:none;animation:fadein .25s ease}
+.view.on{display:block}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);opacity:0;z-index:40;
+  padding:10px 16px;border-radius:14px;color:#fff;font-size:12.5px;font-weight:600;background:linear-gradient(135deg,#ff86bd,#c2185b);box-shadow:0 10px 24px -8px rgba(194,24,91,.6);transition:.3s;pointer-events:none;max-width:90%}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (prefers-reduced-motion:reduce){.card::after,.hero::after,.dot.live{animation:none}.view{animation:none}}
+@media (max-width:360px){.hero .big{font-size:29px}.g4{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="toprow">
+      <div>
+        <div class="logo"><span class="gtxt">GRID</span><span class="two">2</span></div>
+        <div class="sub" id="hSub">GridTrend S2 · Live Monitor</div>
+      </div>
+      <div class="sp"></div>
+      <button class="ibtn" id="btnRefresh" aria-label="Refresh"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v5h-5"/></svg></button>
+    </div>
+    <div class="statusbar">
+      <span class="pill"><span class="dot" id="hDot"></span><span id="hLive">Connecting…</span></span>
+      <span class="pill" id="hStatus">—</span>
+      <span class="pill mono" id="hPrice">—</span>
+    </div>
+    <div class="acctchips" id="acctChips"></div>
+    <div class="banner" id="banner"></div>
+  </header>
+
+  <main>
+    <section class="view on" id="v-home"></section>
+    <section class="view" id="v-grid"></section>
+    <section class="view" id="v-risk"></section>
+    <section class="view" id="v-hist"></section>
+    <section class="view" id="v-set"></section>
+  </main>
+</div>
+
+<nav class="bnav" id="bnav">
+  <button class="on" data-v="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>HOME</button>
+  <button data-v="grid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>GRID</button>
+  <button data-v="risk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M12 8v5"/><path d="M12 16.5v.01"/></svg>RISK</button>
+  <button data-v="hist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/></svg>HISTORY</button>
+  <button data-v="set"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>SETUP</button>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* =================================================================
+   GRID 2  v1.0.0  — GridTrend EA Strategy 2 monitor
+   Data: Firebase RTDB REST  {FB}/{root}/{account}/live|events|cycles
+   ================================================================= */
+const APP_VER='1.0.0';
+const DEF_FB='https://forexdiagnosis-default-rtdb.asia-southeast1.firebasedatabase.app';
+const STALE_SEC=120;
+const LS_CFG='g2cfg', LS_CACHE='g2cache';
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function loadCfg(){
+  let c={};
+  try{c=JSON.parse(localStorage.getItem(LS_CFG)||'{}')}catch(e){}
+  return Object.assign({fb:DEF_FB,root:'gt2',acct:'',accts:[],opening:{},labels:{},refresh:5,notify:false,demo:false},c);
+}
+let CFG=loadCfg();
+function saveCfg(){try{localStorage.setItem(LS_CFG,JSON.stringify(CFG))}catch(e){}}
+if(/[?&]demo/.test(location.search)) CFG.demo=true;
+
+const ST={live:null,events:[],cycles:[],lastOk:0,err:'',view:'home',evFilter:'ALL',seenEv:null,busy:false};
+try{const c=JSON.parse(localStorage.getItem(LS_CACHE)||'null'); if(c&&c.acct==CFG.acct){ST.live=c.live;ST.events=c.events||[];ST.cycles=c.cycles||[]}}catch(e){}
+
+/* ---------- format helpers ---------- */
+const num=v=>(typeof v==='number'&&isFinite(v))?v:0;
+function money(v,d=2){v=num(v);return (v<0?'-':'')+'$'+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d})}
+function smoney(v,d=2){v=num(v);return (v>0?'+':v<0?'-':'')+'$'+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d})}
+const cls=v=>num(v)>0?'pos':num(v)<0?'neg':'';
+const pct=(v,d=2)=>(num(v)>0?'+':'')+num(v).toFixed(d)+'%';
+function px(v){const d=(ST.live&&ST.live.digits)||2;return num(v)?num(v).toFixed(d):'—'}
+function ist(t,withDate=true){if(!t)return '—';const o={timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hour12:true};if(withDate){o.day='2-digit';o.month='short'}return new Date(t*1000).toLocaleString('en-IN',o)}
+function dur(s){s=Math.max(0,Math.round(num(s)));const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);if(d)return d+'d '+h+'h';if(h)return h+'h '+String(m).padStart(2,'0')+'m';return m+'m '+String(s%60).padStart(2,'0')+'s'}
+function ago(s){s=Math.max(0,Math.round(s));if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago'}
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2400)}
+const nowSec=()=>Date.now()/1000;
+
+/* ---------- Firebase REST ---------- */
+function base(){return CFG.fb.replace(/\/+$/,'')+'/'+encodeURIComponent(CFG.root)}
+async function fbGet(path,q){
+  const url=base()+path+'.json'+(q?('?'+q):'');
+  const r=await fetch(url,{cache:'no-store'});
+  if(r.status===401||r.status===403) throw new Error('PERM');
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return r.json();
+}
+async function discoverAccounts(){
+  if(CFG.demo){CFG.accts=['DEMO'];if(!CFG.acct)CFG.acct='DEMO';return}
+  try{
+    const d=await fbGet('','shallow=true');
+    const list=d?Object.keys(d).sort():[];
+    CFG.accts=list;
+    if((!CFG.acct||!list.includes(CFG.acct))&&list.length) CFG.acct=list[0];
+    saveCfg();
+  }catch(e){if(e.message==='PERM')ST.err='PERM'}
+}
+
+async function pollLive(){
+  if(CFG.demo){ST.live=demoLive();ST.lastOk=Date.now();ST.err='';return}
+  if(!CFG.acct||slowTick%24===23){await discoverAccounts();renderChips()}   // naye account khud dhoondo
+  if(!CFG.acct){if(ST.err!=='PERM')ST.err='NOACCT';return}
+  try{
+    const d=await fbGet('/'+CFG.acct+'/live');
+    if(!d){ST.err='NODATA';return}
+    ST.live=d;ST.lastOk=Date.now();ST.err='';
+  }catch(e){ST.err=e.message==='PERM'?'PERM':(navigator.onLine?'NET':'OFFLINE')}
+}
+async function pollEvents(){
+  if(CFG.demo){if(!ST.events.length)ST.events=demoEvents();return}
+  if(!CFG.acct)return;
+  try{
+    const d=await fbGet('/'+CFG.acct+'/events','orderBy=%22%24key%22&limitToLast=120');
+    const arr=d?Object.keys(d).map(k=>Object.assign({k},d[k])).sort((a,b)=>a.k<b.k?1:-1):[];
+    notifyNew(arr);
+    ST.events=arr;
+  }catch(e){}
+}
+async function pollCycles(){
+  if(CFG.demo){if(!ST.cycles.length)ST.cycles=demoCycles();return}
+  if(!CFG.acct)return;
+  try{
+    const d=await fbGet('/'+CFG.acct+'/cycles','orderBy=%22%24key%22&limitToLast=200');
+    ST.cycles=d?Object.keys(d).map(k=>Object.assign({k},d[k])).sort((a,b)=>a.k<b.k?1:-1):[];
+  }catch(e){}
+}
+function cacheSave(){try{localStorage.setItem(LS_CACHE,JSON.stringify({acct:CFG.acct,live:ST.live,events:ST.events.slice(0,120),cycles:ST.cycles.slice(0,200)}))}catch(e){}}
+
+const NOTIFY_TYPES=['TP','TRAIL','FLIP','DDLIMIT','BASKET','CYCLE','SPIKE','PARTIAL','FUNDS'];
+function notifyNew(arr){
+  if(ST.seenEv===null){ST.seenEv=arr.length?arr[0].k:'';return}
+  const fresh=arr.filter(e=>e.k>ST.seenEv);
+  if(arr.length) ST.seenEv=arr[0].k;
+  if(!fresh.length) return;
+  fresh.slice(0,3).forEach(e=>{
+    if(NOTIFY_TYPES.includes(e.type)) toast(evMeta(e.type).i+' '+e.msg);
+    if(CFG.notify&&NOTIFY_TYPES.includes(e.type)&&'Notification' in window&&Notification.permission==='granted'&&navigator.serviceWorker){
+      navigator.serviceWorker.ready.then(r=>r.showNotification('GRID 2 · '+evMeta(e.type).n,{body:e.msg,icon:'icon-192.png',badge:'icon-192.png',tag:e.k})).catch(()=>{});
+    }
+  });
+}
+
+/* ---------- loop ---------- */
+let tLive=null,tSlow=null,slowTick=0;
+async function cycle(full){
+  if(ST.busy)return;ST.busy=true;
+  $('btnRefresh').classList.add('spin');
+  try{
+    await pollLive();
+    if(full||slowTick%4===0) await pollEvents();
+    if(full||slowTick%12===0) await pollCycles();
+    slowTick++;
+    cacheSave();
+  }finally{ST.busy=false;$('btnRefresh').classList.remove('spin');render()}
+}
+function startLoop(){
+  stopLoop();
+  const sec=Math.max(3,num(+CFG.refresh)||5);
+  tLive=setInterval(()=>{if(!document.hidden)cycle(false)},sec*1000);
+  tSlow=setInterval(renderHeader,1000);
+}
+function stopLoop(){clearInterval(tLive);clearInterval(tSlow)}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)cycle(true)});
+
+/* ---------- header ---------- */
+function stateOf(st){
+  if(!st) return '';
+  if(st==='RUNNING') return 'st-run';
+  if(['DD LIMIT HIT'].includes(st)) return 'st-bad';
+  if(['NEWS BLOCK','SPIKE BLOCK','SPREAD HIGH','FLIP PAUSE','WEEKEND BLOCK'].includes(st)) return 'st-warn';
+  return '';
+}
+function renderHeader(){
+  const L=ST.live, b=$('banner');
+  const age=L&&L.ts?nowSec()-L.ts:1e9;
+  const stale=!!L&&age>STALE_SEC;
+  document.body.classList.toggle('isstale',stale&&!CFG.demo);
+  const dot=$('hDot');
+  dot.className='dot '+(!L?'off':stale?'stale':'live');
+  $('hLive').textContent=!L?(ST.err==='OFFLINE'?'Offline':'No data'):CFG.demo?'DEMO DATA':stale?('STALE · '+ago(age)):('LIVE · '+ago(age));
+  const hs=$('hStatus');
+  hs.textContent=L?(L.status||'—'):'—';hs.className='pill '+stateOf(L&&L.status);
+  $('hPrice').textContent=L?(L.sym+'  '+px(L.bid)+'  ·  '+L.spread+'pt'):'—';
+  $('hSub').textContent=L?(L.ea+' · #'+L.acct+(L.demo?' · DEMO':' · LIVE')):'GridTrend S2 · Live Monitor';
+  // banner
+  let msg='',kind='';
+  if(ST.err==='PERM'){kind='err';msg='<b>Firebase permission denied.</b> Firebase console → Realtime Database → Rules mein <b>"'+esc(CFG.root)+'"</b> block add karo (SETUP tab mein snippet hai).'}
+  else if(ST.err==='NOACCT'){kind='info';msg='Abhi koi account nahi mila. EA <b>v1.03</b> VPS pe chalu karo — 10 sec mein account yahan apne aap aa jayega. Ya SETUP mein account number daalo.'}
+  else if(ST.err==='NODATA'){kind='info';msg='Account <b>#'+esc(CFG.acct)+'</b> ka data abhi nahi aaya. EA v1.03 chart pe hai aur WebRequest URL allowed hai — check karo.'}
+  else if(stale&&!CFG.demo){kind='warn';msg='<b>Data purana hai</b> ('+ago(age)+'). EA band hai, MT5/VPS disconnected hai, ya internet issue hai. Last update: '+ist(L.ts)+' IST'}
+  else if(ST.err==='OFFLINE'){kind='warn';msg='Phone offline hai — last saved data dikha rahe hain.'}
+  b.className='banner'+(msg?' show '+kind:'');b.innerHTML=msg;
+}
+function renderChips(){
+  const box=$('acctChips');
+  if(!CFG.accts||CFG.accts.length<2){box.innerHTML='';return}
+  box.innerHTML=CFG.accts.map(a=>'<button class="chip'+(a===CFG.acct?' on':'')+'" data-a="'+esc(a)+'">#'+esc(CFG.labels[a]||a)+'</button>').join('');
+}
+$('acctChips').addEventListener('click',e=>{const a=e.target.closest('[data-a]');if(!a)return;switchAcct(a.dataset.a)});
+function switchAcct(a){CFG.acct=a;saveCfg();ST.live=null;ST.events=[];ST.cycles=[];ST.seenEv=null;renderChips();render();cycle(true)}
+
+/* ---------- views ---------- */
+function openingOf(L){const o=+CFG.opening[CFG.acct];return o>0?o:num(L.opening)}
+function sideStatus(s,dir){
+  if(!s||!s.on) return ['OFF','n'];
+  if(s.n>0&&s.ddFrozen) return ['DD FROZEN','a'];
+  if(s.n>0&&s.frozen) return ['FROZEN','a'];
+  if(s.n>0) return ['ACTIVE',dir===1?'g':'r'];
+  return ['IDLE','n'];
+}
+function renderHome(){
+  const L=ST.live, v=$('v-home');
+  if(!L){v.innerHTML=emptyState();return}
+  const op=openingOf(L), growth=num(L.bal)-op, gp=op>0?growth/op*100:0;
+  const cyc=L.cycle||{}, cp=num(cyc.profit), ct=num(cyc.target)||1;
+  const cpw=Math.max(0,Math.min(100,cp/ct*100));
+  const sig=L.sig||{}, sd=sig.sig===1?'buy':sig.sig===-1?'sell':'none';
+  const pend=(sig.confirmOn&&sig.pend&&sig.pend!==sig.sig)?('<span class="tag a">'+(sig.pend===1?'BUY':'SELL')+' confirm '+sig.pendN+'/'+sig.confirmBars+'</span>'):'';
+  const B=L.buy||{},S=L.sell||{};const [bs,bc]=sideStatus(B,1),[ss,sc]=sideStatus(S,-1);
+  const pl=L.pl||{};
+  v.innerHTML=`
+  <div class="hero">
+    <div class="lbl">Equity</div>
+    <div class="big">${money(L.eq)}</div>
+    <span class="delta">Floating ${smoney(L.floating)}</span>
+    <div class="row3">
+      <div class="mini"><span>Balance</span><b>${money(L.bal)}</b></div>
+      <div class="mini"><span>Opening</span><b>${money(op)}</b></div>
+      <div class="mini"><span>Growth</span><b>${smoney(growth)}</b></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ch"><h3>Profit / Loss</h3><span class="tag ${gp>=0?'g':'r'} tag">${pct(gp)} total</span></div>
+    <div class="g2">
+      <div class="tile"><span>Aaj (Today)</span><b class="${cls(pl.today)}">${smoney(pl.today)}</b><small>${num(pl.todayDeals)} closes</small></div>
+      <div class="tile"><span>Is Hafte</span><b class="${cls(pl.week)}">${smoney(pl.week)}</b><small>Mon se</small></div>
+      <div class="tile"><span>Is Mahine</span><b class="${cls(pl.month)}">${smoney(pl.month)}</b><small>1 tarikh se</small></div>
+      <div class="tile"><span>EA All-Time</span><b class="${cls(pl.all)}">${smoney(pl.all)}</b><small>${num(pl.allDeals)} closes</small></div>
+    </div>
+    <div class="barlbl" style="margin-top:12px"><span>Cycle Profit → Target ${cyc.on?'':'(OFF)'}</span><b class="${cls(cp)}">${smoney(cp)} / ${money(ct,0)}</b></div>
+    <div class="bar ${cp<0?'r':''}"><i style="width:${cpw}%"></i></div>
+    <div class="legend"><span>Cycle start bal ${money(cyc.startBal)}</span><span>${num(cyc.count)} cycles done</span></div>
+  </div>
+
+  <div class="card">
+    <div class="ch"><h3>Signal</h3>${pend||'<span class="tag n tag">'+esc(sig.tf||'H1')+' Supertrend</span>'}</div>
+    <div class="sigbox">
+      <div class="sigbig ${sd}">${sd==='none'?'WAIT':sd.toUpperCase()}</div>
+      <div style="flex:1">
+        <div class="kv"><span>Supertrend</span><b class="${sig.st===1?'pos':sig.st===-1?'neg':''}">${sig.st===1?'▲ BUY':sig.st===-1?'▼ SELL':'—'}</b></div>
+        <div class="kv"><span>ST setting</span><b>${num(sig.stPeriod)} / ${num(sig.stMult).toFixed(1)}</b></div>
+        <div class="kv"><span>Confirm bars</span><b>${sig.confirmOn?sig.confirmBars:'OFF'}</b></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ch"><h3>Grid Summary</h3><span class="tag">${num(B.n)+num(S.n)} trades</span></div>
+    <div class="g2">
+      <div class="side"><div class="sh"><span class="arrowB">▲</span>BUY<span class="tag ${bc}">${bs}</span></div>
+        <div class="pnl ${cls(B.pnl)}">${smoney(B.pnl)}</div><small>${num(B.n)}/${num(B.max)} trades · ${num(B.lots).toFixed(2)} lot</small></div>
+      <div class="side"><div class="sh"><span class="arrowS">▼</span>SELL<span class="tag ${sc}">${ss}</span></div>
+        <div class="pnl ${cls(S.pnl)}">${smoney(S.pnl)}</div><small>${num(S.n)}/${num(S.max)} trades · ${num(S.lots).toFixed(2)} lot</small></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ch"><h3>Last 30 Din · Daily P&amp;L</h3><span class="tag n">realized</span></div>
+    ${dailyChart(L.daily||[])}
+  </div>
+
+  <div class="card">
+    <div class="ch"><h3>Account</h3><span class="tag ${L.demo?'a':'g'}">${L.demo?'DEMO':'REAL'}</span></div>
+    <div class="kv"><span>Account</span><b>#${esc(L.acct)}</b></div>
+    <div class="kv"><span>Naam</span><b>${esc(L.name||'—')}</b></div>
+    <div class="kv"><span>Broker / Server</span><b style="font-size:11.5px">${esc(L.server||'—')}</b></div>
+    <div class="kv"><span>Leverage</span><b>1:${num(L.lev)}</b></div>
+    <div class="kv"><span>Margin used</span><b>${money(L.margin)}</b></div>
+    <div class="kv"><span>Free margin</span><b>${money(L.freeMargin)}</b></div>
+    <div class="kv"><span>Margin level</span><b>${num(L.marginLevel)?num(L.marginLevel).toFixed(0)+'%':'—'}</b></div>
+    <div class="kv"><span>Deposits / Withdraw</span><b>${money(L.deposits,0)} / ${money(L.withdrawals,0)}</b></div>
+    <div class="kv"><span>Opening balance</span><b>${money(op)} <span class="mutd" style="font-size:10px">${+CFG.opening[CFG.acct]>0?'(manual)':(L.openingAuto?'(auto)':'(EA input)')}</span></b></div>
+  </div>
+  <div class="foot">Last update ${ist(L.ts)} IST · GRID 2 v${APP_VER}</div>`;
+}
+
+function dailyChart(arr){
+  if(!arr.length) return '<div class="empty">Abhi data nahi</div>';
+  const W=340,H=150,pad=16,n=arr.length,bw=(W-pad*2)/n;
+  const mx=Math.max(1,...arr.map(d=>Math.abs(num(d.p))));
+  const mid=H/2;
+  let bars='';
+  arr.forEach((d,i)=>{
+    const p=num(d.p),h=Math.max(p?2:0,Math.abs(p)/mx*(mid-14));
+    const x=pad+i*bw+bw*.15,w=bw*.7,y=p>=0?mid-h:mid;
+    bars+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${p>=0?'url(#gP)':'url(#gN)'}"><title>${esc(d.d)}: ${smoney(p)}</title></rect>`;
+  });
+  const tot=arr.reduce((a,d)=>a+num(d.p),0), wins=arr.filter(d=>num(d.p)>0).length, losses=arr.filter(d=>num(d.p)<0).length;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <defs><linearGradient id="gP" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3fd39b"/><stop offset="1" stop-color="#0e9f6e"/></linearGradient>
+    <linearGradient id="gN" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d7263d"/><stop offset="1" stop-color="#ff8a9a"/></linearGradient></defs>
+    <line x1="${pad}" x2="${W-pad}" y1="${mid}" y2="${mid}" stroke="#f0c9da" stroke-width="1"/>
+    <text x="${pad}" y="11" font-size="9" fill="#9a7387" font-family="JetBrains Mono">+${money(mx,0)}</text>
+    <text x="${pad}" y="${H-3}" font-size="9" fill="#9a7387" font-family="JetBrains Mono">-${money(mx,0)}</text>
+    ${bars}</svg>
+    <div class="legend"><span>${esc(arr[0].d)}</span><span><b class="${cls(tot)}">${smoney(tot)}</b> · ${wins}↑ ${losses}↓ din</span><span>${esc(arr[n-1].d)}</span></div>`;
+}
+
+function sideCard(L,dir){
+  const s=dir===1?L.buy:L.sell; if(!s) return '';
+  const [st,sc]=sideStatus(s,dir);
+  const cur=dir===1?num(L.bid):num(L.ask);
+  const tpDist=s.n>0&&s.tp?(dir===1?s.tp-cur:cur-s.tp):0;
+  const nxDist=s.n>0&&s.nextPx?(dir===1?cur-s.nextPx:s.nextPx-cur):0;
+  const fillPct=s.max?Math.min(100,s.n/s.max*100):0;
+  const tgtPct=s.target>0?Math.max(0,Math.min(100,num(s.pnl)/s.target*100)):0;
+  const name=dir===1?'BUY':'SELL', arr=dir===1?'<span class="arrowB">▲</span>':'<span class="arrowS">▼</span>';
+  const age=s.start?nowSec()-s.start:0;
+  return `<div class="card">
+    <div class="ch"><h3>${arr} ${name} Grid</h3><span class="tag ${sc}">${st}</span></div>
+    <div class="g2">
+      <div class="tile"><span>Floating P/L</span><b class="${cls(s.pnl)}">${smoney(s.pnl)}</b><small>target ${money(s.target)}</small></div>
+      <div class="tile"><span>Trades · Lots</span><b>${num(s.n)}/${num(s.max)} · ${num(s.lots).toFixed(2)}</b><small>${s.n?('age '+dur(age)):'koi trade nahi'}</small></div>
+      <div class="tile"><span>Avg price</span><b>${s.n?px(s.avg):'—'}</b><small>breakeven-ish</small></div>
+      <div class="tile"><span>Basket TP @</span><b>${s.n&&s.tp?px(s.tp):'—'}</b><small>${s.n&&s.tp?('$'+Math.abs(tpDist).toFixed(2)+' door'):'—'}</small></div>
+    </div>
+    <div class="barlbl"><span>Grid depth</span><b>L${num(s.n)} / L${num(s.max)}</b></div>
+    <div class="bar ${fillPct>66?'r':fillPct>40?'a':''}"><i style="width:${fillPct}%"></i></div>
+    <div class="barlbl"><span>TP progress</span><b>${tgtPct.toFixed(0)}%</b></div>
+    <div class="bar g"><i style="width:${tgtPct}%"></i></div>
+    <div style="margin-top:8px">
+      <div class="kv"><span>Next level</span><b>${s.n&&s.nextPx&&!s.frozen?('L'+(s.n+1)+' @ '+px(s.nextPx)):(s.n?(s.frozen?'frozen — naye level band':'max depth'):'pehla trade '+num(s.nextLot).toFixed(2)+' lot')}</b></div>
+      ${s.n&&s.nextPx&&!s.frozen?`<div class="kv"><span>Next lot · gap</span><b>${num(s.nextLot).toFixed(2)} lot · $${num(s.nextGap).toFixed(1)}</b></div><div class="kv"><span>Price se doori</span><b>$${Math.max(0,nxDist).toFixed(2)}</b></div>`:''}
+      <div class="kv"><span>Trailing</span><b>${!L.cfg||!L.cfg.trailOn?'OFF':s.trailArmed?('ARMED · peak '+money(s.peak)):('arm @ '+money(L.cfg.trailAct,0)+(s.n?' · peak '+money(s.peak):''))}</b></div>
+    </div>
+  </div>`;
+}
+function renderGrid(){
+  const L=ST.live,v=$('v-grid');
+  if(!L){v.innerHTML=emptyState();return}
+  const P=(L.pos||[]).slice().map(p=>{const m=/_([BS])(\d+)$/.exec(p.c||'');p.lvl=m?+m[2]:0;return p}).sort((a,b)=>(b.d-a.d)||(a.lvl-b.lvl)||(a.t-b.t));
+  const rows=P.map(p=>`<tr><td><span class="lv ${p.d===1?'b':'s'}">${p.d===1?'B':'S'}${p.lvl||''}</span></td><td>${num(p.lot).toFixed(2)}</td><td>${px(p.op)}</td><td>${p.tp?px(p.tp):'—'}</td><td class="${cls(p.pl)}">${smoney(p.pl)}</td></tr>`).join('');
+  const tot=P.reduce((a,p)=>a+num(p.pl),0), lots=P.reduce((a,p)=>a+num(p.lot),0);
+  v.innerHTML=sideCard(L,1)+sideCard(L,-1)+`
+  <div class="card">
+    <div class="ch"><h3>Open Trades</h3><span class="tag">${P.length} · ${lots.toFixed(2)} lot</span></div>
+    ${P.length?`<table class="ptable"><thead><tr><th>Lvl</th><th>Lot</th><th>Open</th><th>TP</th><th>P/L</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="kv" style="margin-top:6px"><span>Total floating</span><b class="${cls(tot)}">${smoney(tot)}</b></div>`:'<div class="empty">Koi open trade nahi — EA signal / entry ka wait kar raha hai.</div>'}
+  </div>`;
+}
+
+function renderRisk(){
+  const L=ST.live,v=$('v-risk');
+  if(!L){v.innerHTML=emptyState();return}
+  const dd=L.dd||{},fl=L.flip||{},bk=L.basket||{},f=L.filt||{};
+  const ddp=dd.limit>0?Math.min(100,num(dd.usd)/dd.limit*100):0;
+  const bLoss=Math.max(0,-num(L.buy&&L.buy.pnl)),sLoss=Math.max(0,-num(L.sell&&L.sell.pnl));
+  const lim=num(fl.limit)||1;
+  const bp=Math.min(100,bLoss/lim*100),sp=Math.min(100,sLoss/lim*100);
+  const bkp=bk.target>0?Math.max(0,Math.min(100,num(bk.rec)/bk.target*100)):0;
+  const fz=fl.frozenDir===1?'BUY side':fl.frozenDir===-1?'SELL side':'koi nahi';
+  const fbox=(label,on,bad,txt)=>`<div class="fbox ${!on?'off':bad?'bad':'ok'}"><span>${label}</span>${!on?'OFF':txt}</div>`;
+  const news=(L.newsList||[]).map(n=>`<div class="kv"><span>${n.imp===1?'<span class="tag r">HIGH</span>':'<span class="tag a">MED</span>'} ${esc(n.name)}</span><b>${ist(n.t,false)}</b></div>`).join('');
+  v.innerHTML=`
+  <div class="card">
+    <div class="ch"><h3>Total Drawdown $</h3><span class="tag ${!dd.on?'n':ddp>=75?'r':ddp>=40?'a':'g'}">${dd.on?ddp.toFixed(0)+'% of limit':'OFF'}</span></div>
+    <div class="barlbl"><span>Floating loss vs liquidate limit</span><b>${money(dd.usd)} / ${money(dd.limit,0)}</b></div>
+    <div class="bar ${ddp>=75?'r':ddp>=40?'a':'g'}"><i style="width:${ddp}%"></i></div>
+    <div class="g2" style="margin-top:10px">
+      <div class="tile"><span>DD abhi</span><b class="${num(dd.pct)>0?'neg':''}">${Math.max(0,num(dd.pct)).toFixed(2)}%</b></div>
+      <div class="tile"><span>Max DD ever</span><b>${num(dd.maxEver).toFixed(2)}%</b></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ch"><h3>Per-Side DD Flip</h3><span class="tag ${!fl.on?'n':fl.pauseLeft>0?'a':'g'}">${!fl.on?'OFF':fl.pauseLeft>0?'PAUSE':'ON'}</span></div>
+    <div class="barlbl"><span><span class="arrowB">▲</span> BUY side loss</span><b>${money(bLoss)} / ${money(lim,0)}</b></div>
+    <div class="bar ${bp>=75?'r':bp>=50?'a':'g'}"><i style="width:${bp}%"></i></div>
+    <div class="barlbl"><span><span class="arrowS">▼</span> SELL side loss</span><b>${money(sLoss)} / ${money(lim,0)}</b></div>
+    <div class="bar ${sp>=75?'r':sp>=50?'a':'g'}"><i style="width:${sp}%"></i></div>
+    <div style="margin-top:8px">
+      <div class="kv"><span>Flips is cycle</span><b>${num(fl.count)} / ${num(fl.max)}</b></div>
+      <div class="kv"><span>DD-frozen side</span><b>${fz}</b></div>
+      <div class="kv"><span>Unfreeze jab loss</span><b>&lt; ${money(lim*num(fl.unfreeze),0)}</b></div>
+      <div class="kv"><span>Cooldown baaki</span><b>${fl.cdLeft>0?dur(fl.cdLeft):'ready'} <span class="mutd" style="font-size:10px">(${num(fl.cdMin)}m)</span></b></div>
+      <div class="kv"><span>Pause baaki</span><b>${fl.pauseLeft>0?dur(fl.pauseLeft):'—'} <span class="mutd" style="font-size:10px">(${num(fl.pauseHrs)}h)</span></b></div>
+      <div class="kv"><span>Last flip</span><b>${fl.last?ist(fl.last):'—'}</b></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ch"><h3>Global Basket TP</h3><span class="tag ${!bk.on?'n':bk.managing?'a':'g'}">${!bk.on?'OFF':bk.managing?'MANAGING':'STANDBY'}</span></div>
+    <div class="barlbl"><span>Recovery → target (${num(bk.pct).toFixed(2)}% bal)</span><b class="${cls(bk.rec)}">${smoney(bk.rec)} / ${money(bk.target)}</b></div>
+    <div class="bar g"><i style="width:${bkp}%"></i></div>
+    <div style="margin-top:8px">
+      <div class="kv"><span>Basket start equity</span><b>${num(bk.startEq)?money(bk.startEq):'—'}</b></div>
+      <div class="kv"><span>Basket age</span><b>${num(bk.ageH)?num(bk.ageH).toFixed(1)+' h':'—'}</b></div>
+      <div class="kv"><span>Float guard</span><b>${num(bk.guard)>0?num(bk.guard).toFixed(1)+'× target':'OFF'}</b></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ch"><h3>Filters</h3><span class="tag ${L.status==='RUNNING'||L.status==='WAITING ENTRY'?'g':'a'}">${esc(L.status)}</span></div>
+    <div class="fgrid">
+      ${fbox('News',f.newsOn,f.news,f.news?'BLOCK':'SAFE')}
+      ${fbox('Weekend',f.wkdOn,f.wkd,f.wkd?'BLOCK':'OK')}
+      ${fbox('Spike',f.spikeOn,f.spike,f.spike?dur(f.spikeLeft):'SAFE')}
+      ${fbox('Spread',f.spreadOn,f.spreadHigh,num(L.spread)+'/'+num(L.maxSpread))}
+      ${fbox('ATR Gap',f.atrOn,num(f.atr)>=2,num(f.atr).toFixed(2)+'×')}
+      ${fbox('Margin',true,num(L.marginLevel)>0&&num(L.marginLevel)<300,num(L.marginLevel)?num(L.marginLevel).toFixed(0)+'%':'—')}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ch"><h3>Upcoming News (IST)</h3><span class="tag n">USD</span></div>
+    ${news||'<div class="empty">Agle 24h mein koi high-impact news nahi</div>'}
+  </div>`;
+}
+
+const EVM={OPEN:{i:'➕',n:'Trade Open'},TP:{i:'🎯',n:'TP Hit'},TRAIL:{i:'🔒',n:'Trail Lock'},FLIP:{i:'🔄',n:'DD Flip'},DDLIMIT:{i:'⛔',n:'DD Limit'},
+  BASKET:{i:'🧺',n:'Basket Close'},CYCLE:{i:'🏆',n:'Cycle Done'},SPIKE:{i:'⚡',n:'Spike'},PARTIAL:{i:'✂️',n:'Partial Close'},FUNDS:{i:'💰',n:'Funds'},START:{i:'▶️',n:'EA Start'},INFO:{i:'ℹ️',n:'Info'}};
+const evMeta=t=>EVM[t]||EVM.INFO;
+function renderHist(){
+  const L=ST.live,v=$('v-hist');
+  const P=(L&&L.perf)||{};
+  const wr=num(P.wr), C=2*Math.PI*38;
+  const ring=`<svg class="ring" viewBox="0 0 92 92"><defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9ccb"/><stop offset="1" stop-color="#e91e63"/></linearGradient></defs>
+    <circle cx="46" cy="46" r="38" fill="none" stroke="#f6e1eb" stroke-width="10"/>
+    <circle cx="46" cy="46" r="38" fill="none" stroke="url(#rg)" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(C*wr/100).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 46 46)"/>
+    <text x="46" y="50" text-anchor="middle" font-family="JetBrains Mono" font-weight="700" font-size="17" fill="#3b1a2e">${wr.toFixed(0)}%</text></svg>`;
+  const cyc=ST.cycles, ctot=cyc.reduce((a,c)=>a+num(c.profit),0);
+  const crow=cyc.slice(0,60).map(c=>`<div class="kv"><span><span class="tag ${num(c.profit)>=0?'g':'r'}">${esc(c.dir)}</span> <span style="font-size:11.5px">${esc(String(c.reason||'').replace(/_/g,' '))}</span><br><small class="mutd" style="font-size:10.5px">${ist(c.t)} · ${num(c.hrs).toFixed(1)}h</small></span><b class="${cls(c.profit)}">${smoney(c.profit)}</b></div>`).join('');
+  const types=['ALL','OPEN','TP','FLIP','TRAIL','BASKET','DDLIMIT','SPIKE','PARTIAL'];
+  const evs=ST.events.filter(e=>ST.evFilter==='ALL'||e.type===ST.evFilter).slice(0,80);
+  const feed=evs.map(e=>`<li><div class="fi">${evMeta(e.type).i}</div><div class="fb"><div class="ft"><span>${evMeta(e.type).n}</span><span>·</span><span>${ist(e.t)}</span></div><div class="fm">${esc(e.msg)}</div></div></li>`).join('');
+  const l3=((L&&L.last3)||[]).map(c=>`<div class="kv"><span>${ist(c.t)} · ${num(c.h)}h</span><b class="${cls(c.p)}">${smoney(c.p)}</b></div>`).join('');
+  v.innerHTML=`
+  <div class="card">
+    <div class="ch"><h3>Performance</h3><span class="tag">lifetime</span></div>
+    <div class="flexc">${ring}
+      <div style="flex:1">
+        <div class="kv"><span>Wins / Losses</span><b><span class="pos">${num(P.wins)}W</span> / <span class="neg">${num(P.losses)}L</span></b></div>
+        <div class="kv"><span>Expectancy</span><b class="${cls(P.exp)}">${smoney(P.exp)}</b></div>
+        <div class="kv"><span>Avg recovery</span><b>${num(P.avgRec).toFixed(1)} h</b></div>
+      </div>
+    </div>
+    <div class="g2" style="margin-top:10px">
+      <div class="tile"><span>Avg win</span><b class="pos">${money(P.avgWin)}</b><small>total ${money(P.profitSum)}</small></div>
+      <div class="tile"><span>Avg loss</span><b class="neg">${money(P.avgLoss)}</b><small>total ${money(P.lossSum)}</small></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ch"><h3>Profit-Target Cycles</h3><span class="tag">last 3</span></div>
+    ${l3||'<div class="empty">Abhi koi $'+num(L&&L.cycle&&L.cycle.target)+' cycle complete nahi hua</div>'}
+  </div>
+
+  <div class="card">
+    <div class="ch"><h3>Basket Closes</h3><span class="tag ${ctot>=0?'g':'r'}">${cyc.length} · ${smoney(ctot)}</span></div>
+    ${crow||'<div class="empty">EA v1.03 ke baad ke basket close yahan aayenge</div>'}
+  </div>
+
+  <div class="card">
+    <div class="ch"><h3>Activity Feed</h3><span class="tag">${ST.events.length}</span></div>
+    <div class="filters">${types.map(t=>`<button class="chip${ST.evFilter===t?' on':''}" data-ev="${t}">${t==='ALL'?'Sab':evMeta(t).n}</button>`).join('')}</div>
+    ${feed?'<ul class="feed">'+feed+'</ul>':'<div class="empty">Koi event nahi</div>'}
+  </div>`;
+}
+$('v-hist').addEventListener('click',e=>{const b=e.target.closest('[data-ev]');if(!b)return;ST.evFilter=b.dataset.ev;renderHist()});
+
+function renderSet(){
+  const L=ST.live,v=$('v-set'),c=(L&&L.cfg)||null;
+  const accOpts=(CFG.accts||[]).map(a=>`<option value="${esc(a)}"${a===CFG.acct?' selected':''}>#${esc(a)}${CFG.labels[a]?' · '+esc(CFG.labels[a]):''}</option>`).join('');
+  let tbl='';
+  if(c&&c.gaps){
+    const n=Math.max(c.gaps.length,c.lots.length);
+    let r='';for(let i=0;i<n;i++)r+=`<tr><td>L${i+1}</td><td>${c.lots[i]!=null?num(c.lots[i]).toFixed(2):'—'}</td><td>${i<n-1&&c.gaps[i]!=null?'$'+num(c.gaps[i]).toFixed(0):'—'}</td></tr>`;
+    tbl=`<table class="tbl2"><thead><tr><th>Level</th><th>Lot</th><th>Gap → next</th></tr></thead><tbody>${r}</tbody></table>`;
+  }
+  const yes=b=>b?'<span class="tag g">ON</span>':'<span class="tag n">OFF</span>';
+  v.innerHTML=`
+  <div class="card">
+    <div class="ch"><h3>App Setup</h3><span class="tag">v${APP_VER}</span></div>
+    <div class="fld"><label>Account</label>
+      <select id="sAcct">${accOpts||'<option value="">— koi nahi mila —</option>'}</select>
+      <div class="hint">EA v1.03 jis account pe chalega woh yahan apne aap aayega.</div></div>
+    <div class="fld"><label>Ya account number manually</label><input id="sAcctM" inputmode="numeric" placeholder="e.g. 433468654" value=""></div>
+    <div class="fld"><label>Is account ka naam (chip label)</label><input id="sLabel" placeholder="e.g. VPS-1 Gold" value="${esc(CFG.labels[CFG.acct]||'')}"></div>
+    <div class="fld"><label>Opening balance (manual)</label><input id="sOpen" inputmode="decimal" placeholder="khali = EA se auto" value="${esc(CFG.opening[CFG.acct]||'')}">
+      <div class="hint">Khali chhodo to EA deposits−withdrawals se khud nikaalega${L?' (abhi '+money(L.opening)+')':''}.</div></div>
+    <div class="fld"><label>Refresh</label><select id="sRef">${[3,5,10,20].map(s=>`<option value="${s}"${+CFG.refresh===s?' selected':''}>har ${s} sec</option>`).join('')}</select></div>
+    <div class="toggle"><span>Notification (TP / Flip / DD / Spike)</span><label class="sw"><input type="checkbox" id="sNot"${CFG.notify?' checked':''}><i></i></label></div>
+    <div class="toggle"><span>Demo data (preview)</span><label class="sw"><input type="checkbox" id="sDemo"${CFG.demo?' checked':''}><i></i></label></div>
+    <details style="margin:6px 0 10px"><summary class="small" style="cursor:pointer;font-weight:600">Advanced — Firebase</summary>
+      <div class="fld" style="margin-top:8px"><label>Firebase URL</label><input id="sFb" value="${esc(CFG.fb)}"></div>
+      <div class="fld"><label>Root node</label><input id="sRoot" value="${esc(CFG.root)}"></div>
+    </details>
+    <div class="btnrow"><button class="btn" id="sSave">Save</button><button class="btn ghost" id="sTest">Connection test</button><button class="btn ghost" id="sUpd">App update</button></div>
+  </div>
+
+  <div class="card">
+    <div class="ch"><h3>EA Settings (live inputs)</h3><span class="tag n">${c?'Magic '+esc(c.magic):'—'}</span></div>
+    ${c?`
+    <div class="kv"><span>Max trades / side</span><b>${num(c.maxTrades)}</b></div>
+    <div class="kv"><span>Avg TP per trade</span><b>$${num(c.avgTP).toFixed(1)}</b></div>
+    <div class="kv"><span>Buy grid / Sell grid</span><b>${yes(c.buyGrid)} ${yes(c.sellGrid)}</b></div>
+    <div class="kv"><span>Trailing</span><b>${c.trailOn?'arm $'+c.trailAct+' · pull $'+c.trailPull:'OFF'}</b></div>
+    <div class="kv"><span>Partial close</span><b>${c.partialOn?c.partialPct+'% · min '+c.partialMin+' trades':'OFF'}</b></div>
+    <div class="kv"><span>Recovery hold</span><b>${c.recHoldOn?'last '+c.recHoldN+' · min '+c.recHoldMin:'OFF'}</b></div>
+    <div class="kv"><span>DD flip</span><b>${L.flip&&L.flip.on?'$'+L.flip.limit+' · max '+L.flip.max+' · '+L.flip.cdMin+'m cd · '+L.flip.pauseHrs+'h pause':'OFF'}</b></div>
+    <div class="kv"><span>Total DD limit</span><b>${L.dd&&L.dd.on?money(L.dd.limit,0):'OFF'}</b></div>
+    <div class="kv"><span>Profit target / cycle</span><b>${L.cycle&&L.cycle.on?money(L.cycle.target,0):'OFF'}</b></div>
+    <div class="kv"><span>Global basket</span><b>${L.basket&&L.basket.on?num(L.basket.pct).toFixed(2)+'% bal':'OFF'}</b></div>
+    <div class="kv"><span>News window</span><b>-${c.newsBefore}m / +${c.newsAfter}m ${c.newsHigh?'H':''}${c.newsMed?'M':''}</b></div>
+    <div class="kv"><span>Spike filter</span><b>$${c.spikeMove}/${c.spikeWin}m → ${c.spikeBlock}m</b></div>
+    <div class="kv"><span>Weekend (IST)</span><b>Fri ${c.friStop}:00 – Mon ${c.monStart}:00</b></div>
+    <div class="kv"><span>Max spread</span><b>${num(L.maxSpread)} pt</b></div>
+    <div class="kv"><span>ATR gap max</span><b>${num(c.atrMax).toFixed(1)}×</b></div>
+    <div class="kv"><span>Bridge push</span><b>har ${num(c.pushSec)}s · v${esc(L.ver)}</b></div>`:'<div class="empty">EA data aane ke baad dikhega</div>'}
+  </div>
+  ${tbl?`<div class="card"><div class="ch"><h3>Lot &amp; Gap Table</h3><span class="tag">${c.lots.length} levels</span></div>${tbl}</div>`:''}
+
+  <div class="card">
+    <div class="ch"><h3>Setup Guide</h3><span class="tag a">1 baar</span></div>
+    <div class="small"><ol>
+      <li>VPS pe <b>GridTrend_EA_Strategy2_v1_03.mq5</b> compile karke chart pe lagao (purana v1.02 hatao).</li>
+      <li>MT5 → Tools → Options → Expert Advisors → <b>Allow WebRequest</b> list mein yeh URL hona chahiye:<pre class="code">${esc(DEF_FB)}</pre></li>
+      <li>Firebase console → Realtime Database → <b>Rules</b> mein <b>gt2</b> block add karo (baaki blocks waise hi rehne do):<pre class="code">"gt2": {
+  ".read": true,
+  ".write": true
+}</pre></li>
+      <li>10 sec baad yeh app account khud dhoondh lega. Chrome menu → <b>Install app / Add to Home screen</b>.</li>
+    </ol></div>
+  </div>
+  <div class="foot">GRID 2 v${APP_VER} · White-Pink Mirror · ${CFG.demo?'DEMO':'LIVE'} mode</div>`;
+  $('sSave').onclick=()=>{
+    const m=$('sAcctM').value.trim(), sel=$('sAcct').value;
+    const acct=m||sel||CFG.acct;
+    if(m&&!CFG.accts.includes(m)) CFG.accts.push(m);
+    const op=parseFloat($('sOpen').value);
+    CFG.fb=$('sFb').value.trim()||DEF_FB; CFG.root=$('sRoot').value.trim()||'gt2';
+    CFG.refresh=+$('sRef').value; CFG.notify=$('sNot').checked;
+    const wasDemo=CFG.demo; CFG.demo=$('sDemo').checked;
+    if(acct){ if(op>0) CFG.opening[acct]=op; else delete CFG.opening[acct];
+      const lb=$('sLabel').value.trim(); if(lb) CFG.labels[acct]=lb; else delete CFG.labels[acct]; }
+    if(CFG.notify&&'Notification' in window&&Notification.permission==='default') Notification.requestPermission();
+    saveCfg(); toast('Saved ✓');
+    if(wasDemo!==CFG.demo){CFG.acct='';CFG.accts=[];ST.live=null;ST.events=[];ST.cycles=[];ST.seenEv=null;init();return}
+    if(acct!==CFG.acct) switchAcct(acct); else {startLoop();render()}
+  };
+  $('sTest').onclick=async()=>{
+    toast('Testing…');
+    try{const d=await fbGet('','shallow=true');const n=d?Object.keys(d).length:0;toast(n?('OK ✓ '+n+' account mila'):'Connected ✓ par abhi koi data nahi')}
+    catch(e){toast(e.message==='PERM'?'Permission denied — rules mein gt2 add karo':'Fail: '+e.message)}
+  };
+  $('sUpd').onclick=async()=>{
+    try{const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.unregister()));const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}catch(e){}
+    location.reload();
+  };
+}
+
+function emptyState(){
+  return `<div class="card" style="text-align:center;padding:28px 18px">
+    <div class="logo" style="justify-content:center;font-size:30px"><span class="gtxt">GRID</span><span class="two">2</span></div>
+    <p class="small" style="margin:12px 0 16px">${ST.err==='PERM'?'Firebase rules mein <b>gt2</b> add karna baaki hai.':'EA ka live data aane ka wait… (EA v1.03 + WebRequest URL)'}</p>
+    <div class="btnrow" style="justify-content:center"><button class="btn" onclick="goView('set')">Setup kholo</button><button class="btn ghost" onclick="CFG.demo=true;saveCfg();init()">Demo dekho</button></div>
+  </div>`;
+}
+
+function render(){
+  renderHeader();renderChips();
+  const v=ST.view;
+  if(v==='home')renderHome();else if(v==='grid')renderGrid();else if(v==='risk')renderRisk();else if(v==='hist')renderHist();
+  /* SETUP tab poll pe re-render nahi hota (typing/inputs safe) — tab kholne pe fresh banta hai */
+}
+function goView(v){
+  ST.view=v;
+  document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));
+  document.querySelectorAll('#bnav button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  if(v==='set')renderSet();
+  render();window.scrollTo({top:0,behavior:'instant'});
+}
+$('bnav').addEventListener('click',e=>{const b=e.target.closest('button[data-v]');if(b)goView(b.dataset.v)});
+$('btnRefresh').onclick=()=>cycle(true);
+
+/* ---------- demo data ---------- */
+function demoLive(){
+  const t=nowSec(),w=Math.sin(t/40)*4,bid=2648.35+w,dg=2;
+  const mk=(d,l,lot,op)=>({tk:900000+l*(d===1?1:7),d,lot,op,tp:0,pl:+((d===1?bid-op:op-bid-0.25)*lot*100).toFixed(2),sw:-0.4*l,c:'GridTrend_EA_'+(d===1?'B':'S')+l,t:t-3600*(9-l)});
+  const pos=[mk(-1,1,.01,2622.1),mk(-1,2,.01,2627.2),mk(-1,3,.01,2632.4),mk(-1,4,.02,2637.6),mk(-1,5,.02,2643.9),mk(1,1,.01,2641.2),mk(1,2,.01,2636.0)];
+  const sum=d=>pos.filter(p=>p.d===d).reduce((a,p)=>a+p.pl,0),lots=d=>pos.filter(p=>p.d===d).reduce((a,p)=>a+p.lot,0);
+  const bp=sum(1),sp=sum(-1),bal=10462.18,eq=+(bal+bp+sp).toFixed(2);
+  const daily=[];for(let i=29;i>=0;i--){const d=new Date(Date.now()-i*864e5);daily.push({d:String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'),p:i%6===3?-38.4-i:(i%7===0?0:+(12+Math.abs(Math.sin(i))*55).toFixed(2))})}
+  return {ver:'1.03',ea:'GridTrend S2 v1.03',ts:t-2,acct:'DEMO',name:'Ankush Demo',server:'Exness-MT5Trial',company:'Exness',cur:'USD',lev:500,demo:true,sym:'XAUUSDm',digits:dg,
+    bid:+bid.toFixed(dg),ask:+(bid+.25).toFixed(dg),spread:25,maxSpread:280,status:'RUNNING',
+    bal,eq,margin:412.6,freeMargin:+(eq-412.6).toFixed(2),marginLevel:+(eq/412.6*100).toFixed(1),floating:+(bp+sp).toFixed(2),
+    opening:10000,openingAuto:true,deposits:10000,withdrawals:0,
+    pl:{today:48.2,week:131.75,month:462.18,all:462.18,todayDeals:6,allDeals:88},daily,
+    cycle:{startBal:10000,profit:+(eq-10000).toFixed(2),target:500,on:true,count:0},
+    sig:{sig:1,st:1,pend:0,pendN:0,confirmOn:true,confirmBars:2,tf:'H1',stPeriod:10,stMult:3},
+    buy:{n:2,lots:+lots(1).toFixed(2),avg:2638.6,pnl:+bp.toFixed(2),tp:2643.6,target:10,frozen:false,active:true,ddFrozen:false,on:true,peak:Math.max(0,bp),trailArmed:false,nextPx:2630.0,nextLot:.01,nextGap:6,start:t-3600*7,max:30},
+    sell:{n:5,lots:+lots(-1).toFixed(2),avg:2634.9,pnl:+sp.toFixed(2),tp:2627.4,target:25,frozen:true,active:true,ddFrozen:false,on:true,peak:0,trailArmed:false,nextPx:2650.9,nextLot:.02,nextGap:7,start:t-3600*8,max:30},
+    flip:{on:true,count:1,max:4,limit:400,frozenDir:0,pauseLeft:0,cdLeft:1460,unfreeze:.5,pauseHrs:6,cdMin:60,last:t-2140},
+    dd:{pct:+(-(bp+sp)/bal*100).toFixed(2),usd:Math.max(0,-(bp+sp)),limit:2000,on:true,maxEver:6.84},
+    basket:{on:true,rec:+(eq-10462.18).toFixed(2),target:52.31,startEq:10462.18,ageH:8.1,managing:true,guard:3,pct:.5},
+    filt:{news:false,newsOn:true,wkd:false,wkdOn:true,spike:false,spikeLeft:0,spikeOn:true,spreadHigh:false,spreadOn:true,atr:1,atrOn:false},
+    newsList:[{t:t+3600*5.2,imp:1,name:'Non-Farm Employment Change'},{t:t+3600*5.2,imp:1,name:'Unemployment Rate'}],
+    perf:{wins:41,losses:3,wr:93.2,exp:9.84,avgWin:14.6,avgLoss:58.2,avgRec:5.4,profitSum:598.6,lossSum:174.6},
+    last3:[],pos,
+    cfg:{magic:20250001,maxTrades:30,avgTP:5,trailOn:true,trailAct:45,trailPull:22,partialOn:true,partialPct:60,partialMin:6,recHoldOn:true,recHoldN:4,recHoldMin:10,
+      newsBefore:30,newsAfter:30,newsHigh:true,newsMed:false,spikeMove:30,spikeWin:5,spikeBlock:20,friStop:14,monStart:7,atrMax:3,buyGrid:true,sellGrid:true,push:true,pushSec:5,
+      gaps:[5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13,14,14,15,15,16,16,17,17,18,18,19,0],
+      lots:[.01,.01,.01,.02,.02,.02,.03,.03,.03,.04,.04,.04,.05,.05,.05,.06,.06,.06,.07,.07,.07,.08,.08,.08,.09,.09,.09,.1,.1,.1]}};
+}
+function demoEvents(){
+  const t=nowSec();const E=[
+    ['OPEN','BUY L2  0.01 lot @ 2636.00',900],['FLIP','DD FLIP #1: SELL side $-402.15 — FREEZE (khuli rahegi), BUY grid start',2140],
+    ['OPEN','BUY L1  0.01 lot @ 2641.20',2141],['OPEN','SELL L5  0.02 lot @ 2643.90',5400],['SPIKE','VOLATILITY SPIKE! $31.40 move in 5min — new entries paused 20min',7200],
+    ['TP','TP HIT',11000],['OPEN','SELL L4  0.02 lot @ 2637.60',14000],['START','GridTrend S2 v1.03 start — XAUUSDm | Magic 20250001',30000]];
+  return E.map((e,i)=>({k:'-demo'+(99-i),type:e[0],msg:e[1],t:t-e[2]}));
+}
+function demoCycles(){const t=nowSec();return [['SELL','TP_HIT',25.4,3.2],['BOTH','GLOBAL_TARGET',52.1,11.5],['BUY','TRAIL_LOCK',38.9,2.1],['BUY','TP_HIT',10.2,.8]].map((c,i)=>({k:'-c'+(9-i),dir:c[0],reason:c[1],profit:c[2],hrs:c[3],t:t-(i+1)*14000}))}
+
+/* ---------- init ---------- */
+async function init(){
+  render();
+  await discoverAccounts();
+  renderChips();
+  await cycle(true);
+  startLoop();
+}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
+init();
+</script>
+</body>
+</html>
