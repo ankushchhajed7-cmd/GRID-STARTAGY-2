@@ -2,8 +2,8 @@
   "name": "GRID 2",
   "short_name": "GRID 2",
   "description": "GridTrend EA Strategy 2 — live monitor (balance, profit, grid, risk, history)",
-  "id": "./",
-  "start_url": "./",
+  "id": "grid2-monitor-app",
+  "start_url": "./?src=pwa",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
@@ -11,6 +11,7 @@
   "theme_color": "#ff4f9a",
   "lang": "hi",
   "categories": ["finance", "productivity"],
+  "prefer_related_applications": false,
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },

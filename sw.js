@@ -1,7 +1,7 @@
-/* GRID 2 service worker — v1.0.0
+/* GRID 2 service worker — v1.0.1
    App shell: network-first (naya build turant milega), offline pe cache.
    Firebase data: hamesha network (kabhi cache nahi). */
-const CACHE='grid2-v1.0.0';
+const CACHE='grid2-v1.0.1';
 const SHELL=['./','./index.html','./manifest.json','./icon-192.png','./icon-512.png','./icon-maskable-512.png'];
 
 self.addEventListener('install',e=>{
