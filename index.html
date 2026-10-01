@@ -17,6 +17,8 @@
 <title>GRID 2</title>
 <!--
   GRID 2 — GridTrend EA Strategy 2 ka mobile monitor (PWA)
+  v1.0.2  (2026-10-01)  DEMO FIX — real account number daalte hi demo apne aap OFF, demo pe manual
+           opening balance nahi lagta, account number sirf digits, saaf DEMO banner
   v1.0.1  (2026-10-01)  INSTALL FIX — naya manifest id (Chrome ka purana 'already installed'
            record bypass), app ke andar INSTALL button + SETUP mein install status/guide
   v1.0.0  (2026-10-01)  pehla build
@@ -290,7 +292,7 @@ pre.code{font-family:var(--mono);font-size:11.5px;background:#2b1424;color:#ffd3
    GRID 2  v1.0.0  — GridTrend EA Strategy 2 monitor
    Data: Firebase RTDB REST  {FB}/{root}/{account}/live|events|cycles
    ================================================================= */
-const APP_VER='1.0.1';
+const APP_VER='1.0.2';
 const DEF_FB='https://forexdiagnosis-default-rtdb.asia-southeast1.firebasedatabase.app';
 const STALE_SEC=120;
 const LS_CFG='g2cfg', LS_CACHE='g2cache';
@@ -306,6 +308,14 @@ function loadCfg(){
 let CFG=loadCfg();
 function saveCfg(){try{localStorage.setItem(LS_CFG,JSON.stringify(CFG))}catch(e){}}
 if(/[?&]demo/.test(location.search)) CFG.demo=true;
+// v1.0.2: purani galat entries saaf karo (DEMO pe opening/label, non-digit account)
+CFG.manual=(CFG.manual||[]).filter(a=>/^\d{3,12}$/.test(a));
+delete CFG.opening.DEMO; delete CFG.labels.DEMO;
+Object.keys(CFG.opening).forEach(k=>{if(!/^\d{3,12}$/.test(k))delete CFG.opening[k]});
+Object.keys(CFG.labels).forEach(k=>{if(!/^\d{3,12}$/.test(k))delete CFG.labels[k]});
+CFG.accts=CFG.demo?['DEMO']:(CFG.accts||[]).filter(a=>/^\d{3,12}$/.test(a));
+if(CFG.demo)CFG.acct='DEMO'; else if(!/^\d{3,12}$/.test(CFG.acct||''))CFG.acct='';
+saveCfg();
 
 const ST={live:null,events:[],cycles:[],lastOk:0,err:'',view:'home',evFilter:'ALL',seenEv:null,busy:false};
 try{const c=JSON.parse(localStorage.getItem(LS_CACHE)||'null'); if(c&&c.acct==CFG.acct){ST.live=c.live;ST.events=c.events||[];ST.cycles=c.cycles||[]}}catch(e){}
@@ -333,10 +343,10 @@ async function fbGet(path,q){
   return r.json();
 }
 async function discoverAccounts(){
-  if(CFG.demo){CFG.accts=['DEMO'];if(!CFG.acct)CFG.acct='DEMO';return}
+  if(CFG.demo){CFG.accts=['DEMO'];CFG.acct='DEMO';return}
   try{
     const d=await fbGet('','shallow=true');
-    const list=d?Object.keys(d).sort():[];
+    const list=[...new Set([...(d?Object.keys(d):[]),...(CFG.manual||[])])].filter(a=>/^\d{3,12}$/.test(a)).sort();
     CFG.accts=list;
     if((!CFG.acct||!list.includes(CFG.acct))&&list.length) CFG.acct=list[0];
     saveCfg();
@@ -435,7 +445,9 @@ function renderHeader(){
   else if(ST.err==='NOACCT'){kind='info';msg='Abhi koi account nahi mila. EA <b>v1.03</b> VPS pe chalu karo — 10 sec mein account yahan apne aap aa jayega. Ya SETUP mein account number daalo.'}
   else if(ST.err==='NODATA'){kind='info';msg='Account <b>#'+esc(CFG.acct)+'</b> ka data abhi nahi aaya. EA v1.03 chart pe hai aur WebRequest URL allowed hai — check karo.'}
   else if(stale&&!CFG.demo){kind='warn';msg='<b>Data purana hai</b> ('+ago(age)+'). EA band hai, MT5/VPS disconnected hai, ya internet issue hai. Last update: '+ist(L.ts)+' IST'}
+  else if(ST.err==='NET'){kind='warn';msg='Firebase se connect nahi ho pa raha — internet check karo, app thodi der mein khud retry karega.'}
   else if(ST.err==='OFFLINE'){kind='warn';msg='Phone offline hai — last saved data dikha rahe hain.'}
+  else if(CFG.demo){kind='warn';msg='<b>DEMO mode</b> — ye sirf sample (nakli) data hai. Asli EA data ke liye <b>SETUP → Demo data OFF</b> karke Save dabao.'}
   b.className='banner'+(msg?' show '+kind:'');b.innerHTML=msg;
 }
 function renderChips(){
@@ -447,7 +459,7 @@ $('acctChips').addEventListener('click',e=>{const a=e.target.closest('[data-a]')
 function switchAcct(a){CFG.acct=a;saveCfg();ST.live=null;ST.events=[];ST.cycles=[];ST.seenEv=null;renderChips();render();cycle(true)}
 
 /* ---------- views ---------- */
-function openingOf(L){const o=+CFG.opening[CFG.acct];return o>0?o:num(L.opening)}
+function openingOf(L){if(CFG.demo)return num(L.opening);const o=+CFG.opening[CFG.acct];return o>0?o:num(L.opening)}
 function sideStatus(s,dir){
   if(!s||!s.on) return ['OFF','n'];
   if(s.n>0&&s.ddFrozen) return ['DD FROZEN','a'];
@@ -732,7 +744,7 @@ function renderSet(){
     <div class="fld"><label>Account</label>
       <select id="sAcct">${accOpts||'<option value="">— koi nahi mila —</option>'}</select>
       <div class="hint">EA v1.03 jis account pe chalega woh yahan apne aap aayega.</div></div>
-    <div class="fld"><label>Ya account number manually</label><input id="sAcctM" inputmode="numeric" placeholder="e.g. 433468654" value=""></div>
+    <div class="fld"><label>Ya MT5 account number (login) manually</label><input id="sAcctM" inputmode="numeric" placeholder="e.g. 433468654" value=""><div class="hint">Sirf number (MT5 login). Naam neeche wale box mein. Number daalte hi Demo OFF ho jayega.</div></div>
     <div class="fld"><label>Is account ka naam (chip label)</label><input id="sLabel" placeholder="e.g. VPS-1 Gold" value="${esc(CFG.labels[CFG.acct]||'')}"></div>
     <div class="fld"><label>Opening balance (manual)</label><input id="sOpen" inputmode="decimal" placeholder="khali = EA se auto" value="${esc(CFG.opening[CFG.acct]||'')}">
       <div class="hint">Khali chhodo to EA deposits−withdrawals se khud nikaalega${L?' (abhi '+money(L.opening)+')':''}.</div></div>
@@ -783,19 +795,30 @@ function renderSet(){
   <div class="foot">GRID 2 v${APP_VER} · White-Pink Mirror · ${CFG.demo?'DEMO':'LIVE'} mode</div>`;
   const ib=$('sInstall'); if(ib) ib.onclick=doInstall;
   $('sSave').onclick=()=>{
-    const m=$('sAcctM').value.trim(), sel=$('sAcct').value;
-    const acct=m||sel||CFG.acct;
-    if(m&&!CFG.accts.includes(m)) CFG.accts.push(m);
-    const op=parseFloat($('sOpen').value);
+    const m=$('sAcctM').value.replace(/\s+/g,''), sel=$('sAcct').value;
+    if(m&&!/^\d{3,12}$/.test(m)){toast('Account number sirf digits mein (MT5 login, jaise 433468654)');return}
+    const op=parseFloat($('sOpen').value), lb=$('sLabel').value.trim();
     CFG.fb=$('sFb').value.trim()||DEF_FB; CFG.root=$('sRoot').value.trim()||'gt2';
     CFG.refresh=+$('sRef').value; CFG.notify=$('sNot').checked;
-    const wasDemo=CFG.demo; CFG.demo=$('sDemo').checked;
-    if(acct){ if(op>0) CFG.opening[acct]=op; else delete CFG.opening[acct];
-      const lb=$('sLabel').value.trim(); if(lb) CFG.labels[acct]=lb; else delete CFG.labels[acct]; }
+    const wasDemo=CFG.demo, oldAcct=CFG.acct;
+    CFG.demo=$('sDemo').checked&&!m;            // real number daala → demo OFF
+    if(m&&!CFG.manual.includes(m)) CFG.manual.push(m);
+    const acct=CFG.demo?'DEMO':(m||(/^\d{3,12}$/.test(sel)?sel:'')||(CFG.manual[0]||''));
+    if(acct&&acct!=='DEMO'){
+      if(op>0) CFG.opening[acct]=op; else delete CFG.opening[acct];
+      if(lb) CFG.labels[acct]=lb; else delete CFG.labels[acct];
+    }
     if(CFG.notify&&'Notification' in window&&Notification.permission==='default') Notification.requestPermission();
-    saveCfg(); toast('Saved ✓');
-    if(wasDemo!==CFG.demo){CFG.acct='';CFG.accts=[];ST.live=null;ST.events=[];ST.cycles=[];ST.seenEv=null;init();return}
-    if(acct!==CFG.acct) switchAcct(acct); else {startLoop();render()}
+    CFG.acct=acct;
+    if(!CFG.demo){CFG.accts=[...new Set([...(CFG.accts||[]).filter(a=>a!=='DEMO'),...CFG.manual])]}
+    saveCfg();
+    if(wasDemo!==CFG.demo||acct!==oldAcct){
+      toast(CFG.demo?'Demo mode ON':('Saved ✓ — account #'+(acct||'?')+' ka live data load ho raha hai'));
+      ST.live=null;ST.events=[];ST.cycles=[];ST.seenEv=null;ST.err='';
+      try{localStorage.removeItem(LS_CACHE)}catch(e){}
+      init();renderSet();return;
+    }
+    toast('Saved ✓');startLoop();render();
   };
   $('sTest').onclick=async()=>{
     toast('Testing…');
@@ -812,7 +835,7 @@ function emptyState(){
   return `<div class="card" style="text-align:center;padding:28px 18px">
     <div class="logo" style="justify-content:center;font-size:30px"><span class="gtxt">GRID</span><span class="two">2</span></div>
     <p class="small" style="margin:12px 0 16px">${ST.err==='PERM'?'Firebase rules mein <b>gt2</b> add karna baaki hai.':'EA ka live data aane ka wait… (EA v1.03 + WebRequest URL)'}</p>
-    <div class="btnrow" style="justify-content:center"><button class="btn" onclick="goView('set')">Setup kholo</button><button class="btn ghost" onclick="CFG.demo=true;saveCfg();init()">Demo dekho</button></div>
+    <div class="btnrow" style="justify-content:center"><button class="btn" onclick="goView('set')">Setup kholo</button><button class="btn ghost" onclick="CFG.demo=true;CFG.acct='DEMO';CFG.accts=['DEMO'];saveCfg();init()">Demo dekho</button></div>
   </div>`;
 }
 
