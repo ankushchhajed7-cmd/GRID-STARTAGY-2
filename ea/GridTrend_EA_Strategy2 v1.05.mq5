@@ -1962,7 +1962,7 @@ void LoadEAState()
 //|  /gt2/{acct}/events   = alerts + trade opens (activity feed)      |
 //|  /gt2/{acct}/cycles   = har basket close ka result                |
 //+------------------------------------------------------------------+
-#define  BR_VER  "1.03"
+#define  BR_VER  "1.05"
 bool     g_brOn=false;
 string   g_brQ[];            // /events ke liye pending JSON
 string   g_brCycQ[];         // /cycles ke liye pending JSON
