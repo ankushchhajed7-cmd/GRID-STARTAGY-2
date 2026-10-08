@@ -1,5 +1,15 @@
 //+------------------------------------------------------------------+
-//|            GridTrend_EA_Strategy2.mq5   v1.03                    |
+//|            GridTrend_EA_Strategy2.mq5   v1.04                    |
+//|  v1.04: 2 naye profit features (dono ON/OFF input, backtest mein  |
+//|   OFF karke purane v1.03 jaisa behaviour compare kar sakte ho):   |
+//|   - FLIP PROFIT CLOSE: H1 trend flip confirm hone pe purani side  |
+//|     net profit (>= FlipClose_Min_Profit) mein ho to freeze ki     |
+//|     jagah turant band. Loss wali side ka logic same (freeze).     |
+//|   - SCALED TRAILING: trailing fixed $45/$22 ki jagah basket ke    |
+//|     apne TP target (AvgTP x trades) ke % se arm hoti hai aur peak |
+//|     ka % lock karti hai (2 stage). Pehle $45 arm ki wajah se 10   |
+//|     trade se chhoti basket mein trailing kabhi lagti hi nahi thi  |
+//|     (TP pehle hit). Partial close ke baad peak reset hota hai.    |
 //|  v1.03: GRID 2 MOBILE APP BRIDGE — EA ab apna poora live data     |
 //|   (balance, equity, opening bal, profit/loss, buy/sell grid,      |
 //|   har trade, flip state, DD, filters, events, cycle history)      |
@@ -99,7 +109,7 @@
 //|  v3.04 FIX: Global-basket baseline BALANCE-anchored + float guard |
 //+------------------------------------------------------------------+
 #property copyright "GridTrend EA v3.27"
-#property version   "1.03"
+#property version   "1.04"
 #property strict
 #include <Trade\Trade.mqh>
 #include <Trade\PositionInfo.mqh>
@@ -160,6 +170,16 @@ input double AvgTP_PerTrade  = 5.0;    // Basket ka per-trade $ target (v3.29: a
 input bool   Enable_Trailing = true;   // Basket profit peak se lock-in karne wala trailing ON/OFF
 input double Trail_Pullback  = 22.0;   // $ pullback from peak to lock-in — v3.23: loosened (backtest se pata chala 10.0 bahut tight tha, profit jaldi cut kar raha tha)
 input double Trail_Activate  = 45.0;   // basket itna $ profit chhuye tabhi trailing arm hoga — v3.23: loosened (pehle 20.0 tha)
+input group "══ SCALED TRAILING (v1.04) ══"
+input bool   Enable_ScaledTrail       = true;   // ON = trailing basket ke TP target ke % se (upar wale fixed $45/$22 ignore). OFF = purana fixed $ trailing
+input double ScaledTrail_Arm_Pct      = 60.0;   // Peak profit basket TP target ka itna % chhuye tabhi trailing arm (target = AvgTP_PerTrade x trades)
+input double ScaledTrail_Lock1_Pct    = 50.0;   // Arm hone ke baad peak ka itna % lock — profit isse neeche gira to basket band
+input double ScaledTrail_Stage2_Pct   = 85.0;   // Peak target ka itna % chhuye to stage-2 (tight lock) lagu
+input double ScaledTrail_Lock2_Pct    = 75.0;   // Stage-2 mein peak ka itna % lock
+input double ScaledTrail_Min_Arm      = 10.0;   // Peak kam se kam itna $ ho tabhi arm (chhoti baskets mein spread-noise se bachav)
+input group "══ FLIP PROFIT CLOSE (v1.04) ══"
+input bool   Enable_FlipProfitClose   = true;   // ON = H1 trend flip confirm hone pe purani side profit mein ho to freeze ki jagah band
+input double FlipClose_Min_Profit     = 5.0;    // Purani side ka net P&L (profit+swap) kam se kam itna $ ho tabhi close, warna normal freeze
 // v3.29: "FALLBACK" group pura remove — basket target ab hamesha AvgTP_PerTrade x trades, time se kam nahi hota.
 input group "══ GLOBAL BASKET TP ══"
 input bool   Enable_GlobalBasket   = true;   // Master override: dono side ka combined PnL pe close
@@ -493,6 +513,13 @@ void ExportDashboardJSON()
    json+="\"cfgTrailOn\":"+(string)(Enable_Trailing?"true":"false")+",";
    json+="\"cfgTrailActivate\":"+DoubleToString(Trail_Activate,0)+",";
    json+="\"cfgTrailPullback\":"+DoubleToString(Trail_Pullback,0)+",";
+   json+="\"cfgScaledTrailOn\":"+(string)(Enable_ScaledTrail?"true":"false")+",";
+   json+="\"cfgScaledArmPct\":"+DoubleToString(ScaledTrail_Arm_Pct,0)+",";
+   json+="\"cfgScaledLock1Pct\":"+DoubleToString(ScaledTrail_Lock1_Pct,0)+",";
+   json+="\"cfgScaledStage2Pct\":"+DoubleToString(ScaledTrail_Stage2_Pct,0)+",";
+   json+="\"cfgScaledLock2Pct\":"+DoubleToString(ScaledTrail_Lock2_Pct,0)+",";
+   json+="\"cfgFlipCloseOn\":"+(string)(Enable_FlipProfitClose?"true":"false")+",";
+   json+="\"cfgFlipCloseMin\":"+DoubleToString(FlipClose_Min_Profit,1)+",";
    json+="\"cfgFallbackOn\":false,";   // v3.29: dono fallback system remove
    json+="\"cfgGlobalPct\":"+DoubleToString(Global_Target_Pct,2)+",";
    json+="\"cfgPartialOn\":"+(string)(Enable_PartialClose?"true":"false")+",";
@@ -647,7 +674,7 @@ void BuildDB()
 {
    ClearDB();
    CreateMasterPanel();   // v3.14: solid backing panel — candles kahin se bhi peeche se nahi dikhenge
-   CreateDBLine(R_TITLE, "  GRIDTREND S2 - PER-SIDE DD FLIP v1.03", C'0,0,0', BG_TITLE);
+   CreateDBLine(R_TITLE, "  GRIDTREND S2 - PER-SIDE DD FLIP v1.04", C'0,0,0', BG_TITLE);
    CreateDBLine(R_SEP1,  "  [F1] SIGNAL",                      CL_AMBER, BG_SEP);
    CreateDBLine(R_SIG,   DRow("Signal")+"...",            TXT_VAL,  BG_SIG);
    CreateDBLine(R_SEP2,  "  [F2] PROFIT & GRIDS",              CL_AMBER, BG_SEP);
@@ -1480,6 +1507,13 @@ void CheckPartialClose(int dir)
    {
       if(dir==1) lastPartialClose_Buy=TimeCurrent();
       else       lastPartialClose_Sell=TimeCurrent();
+      // v1.04: scaled trailing mein peak ko naye (chhote) basket pe reset karo — warna band hui
+      // trade ka profit "pullback" dikhega aur trailing galti se poora basket band kar degi
+      if(Enable_Trailing && Enable_ScaledTrail)
+      {
+         double np=GetNetPnL(dir);
+         if(dir==1) buyPeak=np; else sellPeak=np;
+      }
       SendAlert("Partial close "+(dir==1?"BUY":"SELL")+" — most profitable trade locked ($"+DoubleToString(bestPnL,2)+")");
    }
 }
@@ -1528,6 +1562,26 @@ void ManageGrid(int dir)
    double cur=(dir==1)?SymbolInfoDouble(_Symbol,SYMBOL_BID):SymbolInfoDouble(_Symbol,SYMBOL_ASK);
    double diff=(dir==1)?(ext-cur):(cur-ext);
    if(diff>=gap*GetATRMult()) OpenTrade(dir);
+}
+
+//+------------------------------------------------------------------+
+//| v1.04: FLIP PROFIT CLOSE — confirmed trend flip pe purani side    |
+//| profit mein ho to freeze karne ki jagah band kar do (profit bank) |
+//+------------------------------------------------------------------+
+void CheckFlipProfitClose(int newSig)
+{
+   if(!Enable_FlipProfitClose) return;
+   int oldDir=-newSig;
+   if(CountTrades(oldDir)==0) return;
+   double pnl=GetNetPnL(oldDir);
+   if(pnl<FlipClose_Min_Profit) return;   // loss ya chhota profit → normal freeze logic
+   datetime st=(oldDir==1)?buyStartTime:sellStartTime;
+   double durHrs=(st>0)?(double)(TimeCurrent()-st)/3600.0:0;
+   SendAlert("FLIP PROFIT CLOSE: trend "+(newSig==1?"BUY":"SELL")+" — purani "+(oldDir==1?"BUY":"SELL")+
+             " side $"+DoubleToString(pnl,2)+" profit mein band");
+   CloseAll(oldDir);
+   if(oldDir==1) buyFrozen=false; else sellFrozen=false;
+   LogCycleResult(oldDir==1?"BUY":"SELL",pnl,durHrs,"FLIP_PROFIT");
 }
 
 //+------------------------------------------------------------------+
@@ -1673,6 +1727,24 @@ void CheckTP(int dir)
    }
 }
 
+// v1.04: trailing kis $ peak pe arm hogi (scaled = basket TP target ka %, warna fixed Trail_Activate)
+double GetTrailArm(int dir)
+{
+   if(!Enable_ScaledTrail) return Trail_Activate;
+   double tgt=GetTPTarget(dir);
+   if(tgt<=0||tgt>=1e9) return 1e10;
+   return MathMax(tgt*ScaledTrail_Arm_Pct/100.0,ScaledTrail_Min_Arm);
+}
+
+// v1.04: armed hone ke baad profit is $ level tak gira to basket band
+double GetTrailLock(int dir,double peak)
+{
+   if(!Enable_ScaledTrail) return peak-Trail_Pullback;
+   double tgt=GetTPTarget(dir);
+   double lockPct=(peak>=tgt*ScaledTrail_Stage2_Pct/100.0)?ScaledTrail_Lock2_Pct:ScaledTrail_Lock1_Pct;
+   return peak*lockPct/100.0;
+}
+
 //+------------------------------------------------------------------+
 //| BASKET TRAILING — peak se pullback pe winner lock                |
 //| buyPeak/sellPeak ab actually use ho rahe hain (pehle dead the)   |
@@ -1687,8 +1759,8 @@ void CheckTrailing(int dir)
    double pnl=GetNetPnL(dir);
    double peak=(dir==1)?buyPeak:sellPeak;
    if(pnl>peak){ peak=pnl; if(dir==1) buyPeak=peak; else sellPeak=peak; }
-   if(peak<Trail_Activate) return;                 // abhi arm nahi hua
-   if(pnl<=peak-Trail_Pullback)                    // pullback → lock-in
+   if(peak<GetTrailArm(dir)) return;               // abhi arm nahi hua (v1.04: scaled ya fixed)
+   if(pnl<=GetTrailLock(dir,peak))                 // pullback → lock-in
    {
       double durHrs=(double)(TimeCurrent()-((dir==1)?buyStartTime:sellStartTime))/3600.0;
       SendAlert("Trail lock "+(dir==1?"BUY":"SELL")+" @ $"+DoubleToString(pnl,2)+" (peak $"+DoubleToString(peak,2)+")");
@@ -1870,7 +1942,7 @@ void LoadEAState()
 //|  /gt2/{acct}/events   = alerts + trade opens (activity feed)      |
 //|  /gt2/{acct}/cycles   = har basket close ka result                |
 //+------------------------------------------------------------------+
-#define  BR_VER  "1.03"
+#define  BR_VER  "1.04"
 bool     g_brOn=false;
 string   g_brQ[];            // /events ke liye pending JSON
 string   g_brCycQ[];         // /cycles ke liye pending JSON
@@ -1899,6 +1971,7 @@ string BrTypeOf(string m)
    if(StringFind(m,"Cycle #")==0)       return "CYCLE";
    if(StringFind(m,"VOLATILITY")==0)    return "SPIKE";
    if(StringFind(m,"Partial close")==0) return "PARTIAL";
+   if(StringFind(m,"FLIP PROFIT")==0)   return "FLIPCLOSE";   // v1.04
    if(StringFind(m,"DEPOSIT")==0||StringFind(m,"WITHDRAWAL")==0) return "FUNDS";
    return "INFO";
 }
@@ -2039,13 +2112,15 @@ string BrSide(int dir)
    bool frz=(dir==1)?buyFrozen:sellFrozen;
    int  act=(dir==1)?buyActive:sellActive;
    double peak=(dir==1)?buyPeak:sellPeak; if(peak<-1e9) peak=0;
-   bool armed=(Enable_Trailing && n>0 && peak>=Trail_Activate);
+   double trArm=(n>0)?GetTrailArm(dir):0;   // v1.04: scaled ya fixed arm level
+   bool armed=(Enable_Trailing && n>0 && peak>=trArm);
+   double trLock=armed?GetTrailLock(dir,peak):0;
    bool on=(dir==1)?Enable_BuyGrid:Enable_SellGrid;
    string s="{";
    s+="\"n\":"+IntegerToString(n)+",\"lots\":"+BrNum(lots)+",\"avg\":"+BrNum(avg,_Digits)+",\"pnl\":"+BrNum(pnl);
    s+=",\"tp\":"+BrNum(tp,_Digits)+",\"target\":"+BrNum(tgt)+",\"frozen\":"+BrBool(frz && n>0)+",\"active\":"+BrBool(act==1);
    s+=",\"ddFrozen\":"+BrBool(g_ddFrozenDir==dir)+",\"on\":"+BrBool(on);
-   s+=",\"peak\":"+BrNum(peak)+",\"trailArmed\":"+BrBool(armed);
+   s+=",\"peak\":"+BrNum(peak)+",\"trailArmed\":"+BrBool(armed)+",\"trailArm\":"+BrNum(trArm>=1e9?0:trArm)+",\"trailLock\":"+BrNum(trLock);
    s+=",\"nextPx\":"+BrNum(nextPx,_Digits)+",\"nextLot\":"+BrNum(nextLot)+",\"nextGap\":"+BrNum(nextGap);
    s+=",\"start\":"+IntegerToString(BrSrvToEpoch(first))+",\"max\":"+IntegerToString(mx);
    s+="}";
@@ -2073,7 +2148,7 @@ string BrLiveJSON()
    double opening=(Bridge_Opening_Balance>0)?Bridge_Opening_Balance:((netDep>0)?netDep:cycleStartBal);
    int bCnt=CountTrades(1), sCnt=CountTrades(-1);
    string j="{";
-   j+="\"ver\":\""+BR_VER+"\",\"ea\":\"GridTrend S2 v1.03\",\"ts\":"+IntegerToString(BrEpoch());
+   j+="\"ver\":\""+BR_VER+"\",\"ea\":\"GridTrend S2 v1.04\",\"ts\":"+IntegerToString(BrEpoch());
    j+=",\"acct\":"+IntegerToString(AccountInfoInteger(ACCOUNT_LOGIN));
    j+=",\"name\":"+BrStr(AccountInfoString(ACCOUNT_NAME))+",\"server\":"+BrStr(AccountInfoString(ACCOUNT_SERVER));
    j+=",\"company\":"+BrStr(AccountInfoString(ACCOUNT_COMPANY))+",\"cur\":"+BrStr(AccountInfoString(ACCOUNT_CURRENCY));
@@ -2167,6 +2242,9 @@ string BrLiveJSON()
    // ---- settings (inputs) ----
    j+=",\"cfg\":{\"magic\":"+IntegerToString(Magic_Number)+",\"maxTrades\":"+IntegerToString(Max_Trades)+",\"avgTP\":"+BrNum(AvgTP_PerTrade,1)+
       ",\"trailOn\":"+BrBool(Enable_Trailing)+",\"trailAct\":"+BrNum(Trail_Activate,0)+",\"trailPull\":"+BrNum(Trail_Pullback,0)+
+      ",\"trailScaled\":"+BrBool(Enable_ScaledTrail)+",\"stArm\":"+BrNum(ScaledTrail_Arm_Pct,0)+",\"stLock1\":"+BrNum(ScaledTrail_Lock1_Pct,0)+
+      ",\"stStage2\":"+BrNum(ScaledTrail_Stage2_Pct,0)+",\"stLock2\":"+BrNum(ScaledTrail_Lock2_Pct,0)+
+      ",\"flipCloseOn\":"+BrBool(Enable_FlipProfitClose)+",\"flipCloseMin\":"+BrNum(FlipClose_Min_Profit,1)+
       ",\"partialOn\":"+BrBool(Enable_PartialClose)+",\"partialPct\":"+BrNum(PartialClose_Trigger_Pct,0)+",\"partialMin\":"+IntegerToString(PartialClose_Min_Trades)+
       ",\"recHoldOn\":"+BrBool(Enable_RecoveryHold)+",\"recHoldN\":"+IntegerToString(RecoveryHold_LastN)+",\"recHoldMin\":"+IntegerToString(RecoveryHold_MinOppositeTrades)+
       ",\"newsBefore\":"+IntegerToString(News_Before)+",\"newsAfter\":"+IntegerToString(News_After)+",\"newsHigh\":"+BrBool(News_High)+",\"newsMed\":"+BrBool(News_Medium)+
@@ -2263,7 +2341,7 @@ int OnInit()
    BuildHistoryPanel();
    BuildNewsPanel();
    Print("═══════════════════════════════════════");
-   Print("GridTrend S2 v1.03 — READY (dashboard scale ",DoubleToString(g_dbScale,2),"x)");
+   Print("GridTrend S2 v1.04 — READY (dashboard scale ",DoubleToString(g_dbScale,2),"x)");
    Print("Spike Filter   : ", Enable_SpikeFilter?("ON  $"+DoubleToString(Spike_Move_Dollars,0)+"/"+IntegerToString(Spike_Window_Min)+"min -> block "+IntegerToString(Spike_Block_Min)+"min"):"OFF");
    Print("Recovery Hold  : ", Enable_RecoveryHold?("ON  min "+IntegerToString(RecoveryHold_MinOppositeTrades)+" trades deep, last "+IntegerToString(RecoveryHold_LastN)+" all-profit check"):"OFF");
    Print("Total DD $     : ", Enable_TotalDD_Limit?("ON  liquidate at -$"+DoubleToString(Total_DD_Dollar_Limit,0)):"OFF");
@@ -2272,7 +2350,13 @@ int OnInit()
    Print("DD Flip        : ", Enable_DDFlip?("ON  per-side -$"+DoubleToString(DD_Flip_Dollars,0)+
          " | max "+IntegerToString(DD_Flip_Max_Per_Cycle)+"/cycle | cooldown "+
          IntegerToString(DD_Flip_Cooldown_Min)+"min"):"OFF");
-   Print("Trailing       : ", Enable_Trailing?("ON  arm $"+DoubleToString(Trail_Activate,0)+" / pull $"+DoubleToString(Trail_Pullback,0)):"OFF");
+   if(Enable_Trailing && Enable_ScaledTrail)
+      Print("Trailing       : ON  SCALED arm ",DoubleToString(ScaledTrail_Arm_Pct,0),"% of target (min $",DoubleToString(ScaledTrail_Min_Arm,0),
+            ") | lock ",DoubleToString(ScaledTrail_Lock1_Pct,0),"% -> ",DoubleToString(ScaledTrail_Lock2_Pct,0),"% of peak @ ",
+            DoubleToString(ScaledTrail_Stage2_Pct,0),"% target");
+   else
+      Print("Trailing       : ", Enable_Trailing?("ON  arm $"+DoubleToString(Trail_Activate,0)+" / pull $"+DoubleToString(Trail_Pullback,0)):"OFF");
+   Print("Flip Profit Cls: ", Enable_FlipProfitClose?("ON  old side close if net >= $"+DoubleToString(FlipClose_Min_Profit,2)):"OFF");
    Print("Sig Confirm    : ", Enable_SignalConfirm?(IntegerToString(Signal_Confirm_Bars)+" bars"):"OFF (instant flip)");
    Print("Global Basket  : ", Enable_GlobalBasket?("ON  "+DoubleToString(Global_Target_Pct,2)+"% of bal | fixed target | BALANCE-anchored"):"OFF");
    Print("Float Guard    : ", (Basket_FloatGuard_Mult>0)?("ON  block close if floating < -"+DoubleToString(Basket_FloatGuard_Mult,1)+"x target"):"OFF");
@@ -2287,7 +2371,7 @@ int OnInit()
    if(g_brOn)
    {
       EventSetTimer(MathMax(2,Bridge_Push_Sec));
-      BrEventT("START","GridTrend S2 v1.03 start — "+_Symbol+" | Magic "+IntegerToString(Magic_Number));
+      BrEventT("START","GridTrend S2 v1.04 start — "+_Symbol+" | Magic "+IntegerToString(Magic_Number));
       Print("GRID 2 Bridge  : ON  every ",MathMax(2,Bridge_Push_Sec),"s -> ",Bridge_FB_URL,"/",Bridge_Root,"/",AccountInfoInteger(ACCOUNT_LOGIN));
    }
    else Print("GRID 2 Bridge  : OFF",(MQLInfoInteger(MQL_TESTER)?" (tester)":""));
@@ -2365,6 +2449,7 @@ void OnTick()
          else if(!Enable_SignalConfirm || g_lastSig==0)
          {
             // confirmation off, ya sabse pehla signal — abhi act karo
+            if(g_lastSig!=0) CheckFlipProfitClose(s);   // v1.04: sirf asli flip pe
             g_lastSig=s; HandleSignal(s);
             g_pendingSig=0; g_pendingCount=0;
          }
@@ -2375,6 +2460,7 @@ void OnTick()
             else { g_pendingSig=s; g_pendingCount=1; }
             if(g_pendingCount>=Signal_Confirm_Bars)
             {
+               CheckFlipProfitClose(s);   // v1.04: confirmed flip — purani side profit mein ho to band
                g_lastSig=s; HandleSignal(s);
                g_pendingSig=0; g_pendingCount=0;
             }

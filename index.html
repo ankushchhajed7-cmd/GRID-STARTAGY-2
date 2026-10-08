@@ -17,6 +17,8 @@
 <title>GRID 2</title>
 <!--
   GRID 2 — GridTrend EA Strategy 2 ka mobile monitor (PWA)
+  v1.0.3  (2026-10-08)  EA v1.04 support — scaled trailing ka arm/lock level, FLIP PROFIT CLOSE
+           event type (feed + notification), settings mein naye inputs
   v1.0.2  (2026-10-01)  DEMO FIX — real account number daalte hi demo apne aap OFF, demo pe manual
            opening balance nahi lagta, account number sirf digits, saaf DEMO banner
   v1.0.1  (2026-10-01)  INSTALL FIX — naya manifest id (Chrome ka purana 'already installed'
@@ -292,7 +294,7 @@ pre.code{font-family:var(--mono);font-size:11.5px;background:#2b1424;color:#ffd3
    GRID 2  v1.0.0  — GridTrend EA Strategy 2 monitor
    Data: Firebase RTDB REST  {FB}/{root}/{account}/live|events|cycles
    ================================================================= */
-const APP_VER='1.0.2';
+const APP_VER='1.0.3';
 const DEF_FB='https://forexdiagnosis-default-rtdb.asia-southeast1.firebasedatabase.app';
 const STALE_SEC=120;
 const LS_CFG='g2cfg', LS_CACHE='g2cache';
@@ -383,7 +385,7 @@ async function pollCycles(){
 }
 function cacheSave(){try{localStorage.setItem(LS_CACHE,JSON.stringify({acct:CFG.acct,live:ST.live,events:ST.events.slice(0,120),cycles:ST.cycles.slice(0,200)}))}catch(e){}}
 
-const NOTIFY_TYPES=['TP','TRAIL','FLIP','DDLIMIT','BASKET','CYCLE','SPIKE','PARTIAL','FUNDS'];
+const NOTIFY_TYPES=['TP','TRAIL','FLIP','FLIPCLOSE','DDLIMIT','BASKET','CYCLE','SPIKE','PARTIAL','FUNDS'];
 function notifyNew(arr){
   if(ST.seenEv===null){ST.seenEv=arr.length?arr[0].k:'';return}
   const fresh=arr.filter(e=>e.k>ST.seenEv);
@@ -442,8 +444,8 @@ function renderHeader(){
   // banner
   let msg='',kind='';
   if(ST.err==='PERM'){kind='err';msg='<b>Firebase permission denied.</b> Firebase console → Realtime Database → Rules mein <b>"'+esc(CFG.root)+'"</b> block add karo (SETUP tab mein snippet hai).'}
-  else if(ST.err==='NOACCT'){kind='info';msg='Abhi koi account nahi mila. EA <b>v1.03</b> VPS pe chalu karo — 10 sec mein account yahan apne aap aa jayega. Ya SETUP mein account number daalo.'}
-  else if(ST.err==='NODATA'){kind='info';msg='Account <b>#'+esc(CFG.acct)+'</b> ka data abhi nahi aaya. EA v1.03 chart pe hai aur WebRequest URL allowed hai — check karo.'}
+  else if(ST.err==='NOACCT'){kind='info';msg='Abhi koi account nahi mila. EA <b>v1.04</b> VPS pe chalu karo — 10 sec mein account yahan apne aap aa jayega. Ya SETUP mein account number daalo.'}
+  else if(ST.err==='NODATA'){kind='info';msg='Account <b>#'+esc(CFG.acct)+'</b> ka data abhi nahi aaya. EA v1.04 chart pe hai aur WebRequest URL allowed hai — check karo.'}
   else if(stale&&!CFG.demo){kind='warn';msg='<b>Data purana hai</b> ('+ago(age)+'). EA band hai, MT5/VPS disconnected hai, ya internet issue hai. Last update: '+ist(L.ts)+' IST'}
   else if(ST.err==='NET'){kind='warn';msg='Firebase se connect nahi ho pa raha — internet check karo, app thodi der mein khud retry karega.'}
   else if(ST.err==='OFFLINE'){kind='warn';msg='Phone offline hai — last saved data dikha rahe hain.'}
@@ -591,7 +593,7 @@ function sideCard(L,dir){
     <div style="margin-top:8px">
       <div class="kv"><span>Next level</span><b>${s.n&&s.nextPx&&!s.frozen?('L'+(s.n+1)+' @ '+px(s.nextPx)):(s.n?(s.frozen?'frozen — naye level band':'max depth'):'pehla trade '+num(s.nextLot).toFixed(2)+' lot')}</b></div>
       ${s.n&&s.nextPx&&!s.frozen?`<div class="kv"><span>Next lot · gap</span><b>${num(s.nextLot).toFixed(2)} lot · $${num(s.nextGap).toFixed(1)}</b></div><div class="kv"><span>Price se doori</span><b>$${Math.max(0,nxDist).toFixed(2)}</b></div>`:''}
-      <div class="kv"><span>Trailing</span><b>${!L.cfg||!L.cfg.trailOn?'OFF':s.trailArmed?('ARMED · peak '+money(s.peak)):('arm @ '+money(L.cfg.trailAct,0)+(s.n?' · peak '+money(s.peak):''))}</b></div>
+      <div class="kv"><span>Trailing</span><b>${!L.cfg||!L.cfg.trailOn?'OFF':s.trailArmed?('ARMED · peak '+money(s.peak)+(s.trailLock?' · lock '+money(s.trailLock):'')):('arm @ '+money(s.trailArm!=null&&s.n?s.trailArm:L.cfg.trailAct,0)+(s.n?' · peak '+money(s.peak):''))}</b></div>
     </div>
   </div>`;
 }
@@ -678,7 +680,7 @@ function renderRisk(){
 }
 
 const EVM={OPEN:{i:'➕',n:'Trade Open'},TP:{i:'🎯',n:'TP Hit'},TRAIL:{i:'🔒',n:'Trail Lock'},FLIP:{i:'🔄',n:'DD Flip'},DDLIMIT:{i:'⛔',n:'DD Limit'},
-  BASKET:{i:'🧺',n:'Basket Close'},CYCLE:{i:'🏆',n:'Cycle Done'},SPIKE:{i:'⚡',n:'Spike'},PARTIAL:{i:'✂️',n:'Partial Close'},FUNDS:{i:'💰',n:'Funds'},START:{i:'▶️',n:'EA Start'},INFO:{i:'ℹ️',n:'Info'}};
+  BASKET:{i:'🧺',n:'Basket Close'},CYCLE:{i:'🏆',n:'Cycle Done'},SPIKE:{i:'⚡',n:'Spike'},PARTIAL:{i:'✂️',n:'Partial Close'},FLIPCLOSE:{i:'💵',n:'Flip Profit Close'},FUNDS:{i:'💰',n:'Funds'},START:{i:'▶️',n:'EA Start'},INFO:{i:'ℹ️',n:'Info'}};
 const evMeta=t=>EVM[t]||EVM.INFO;
 function renderHist(){
   const L=ST.live,v=$('v-hist');
@@ -690,7 +692,7 @@ function renderHist(){
     <text x="46" y="50" text-anchor="middle" font-family="JetBrains Mono" font-weight="700" font-size="17" fill="#3b1a2e">${wr.toFixed(0)}%</text></svg>`;
   const cyc=ST.cycles, ctot=cyc.reduce((a,c)=>a+num(c.profit),0);
   const crow=cyc.slice(0,60).map(c=>`<div class="kv"><span><span class="tag ${num(c.profit)>=0?'g':'r'}">${esc(c.dir)}</span> <span style="font-size:11.5px">${esc(String(c.reason||'').replace(/_/g,' '))}</span><br><small class="mutd" style="font-size:10.5px">${ist(c.t)} · ${num(c.hrs).toFixed(1)}h</small></span><b class="${cls(c.profit)}">${smoney(c.profit)}</b></div>`).join('');
-  const types=['ALL','OPEN','TP','FLIP','TRAIL','BASKET','DDLIMIT','SPIKE','PARTIAL'];
+  const types=['ALL','OPEN','TP','FLIP','FLIPCLOSE','TRAIL','BASKET','DDLIMIT','SPIKE','PARTIAL'];
   const evs=ST.events.filter(e=>ST.evFilter==='ALL'||e.type===ST.evFilter).slice(0,80);
   const feed=evs.map(e=>`<li><div class="fi">${evMeta(e.type).i}</div><div class="fb"><div class="ft"><span>${evMeta(e.type).n}</span><span>·</span><span>${ist(e.t)}</span></div><div class="fm">${esc(e.msg)}</div></div></li>`).join('');
   const l3=((L&&L.last3)||[]).map(c=>`<div class="kv"><span>${ist(c.t)} · ${num(c.h)}h</span><b class="${cls(c.p)}">${smoney(c.p)}</b></div>`).join('');
@@ -717,7 +719,7 @@ function renderHist(){
 
   <div class="card">
     <div class="ch"><h3>Basket Closes</h3><span class="tag ${ctot>=0?'g':'r'}">${cyc.length} · ${smoney(ctot)}</span></div>
-    ${crow||'<div class="empty">EA v1.03 ke baad ke basket close yahan aayenge</div>'}
+    ${crow||'<div class="empty">EA v1.03+ ke baad ke basket close yahan aayenge</div>'}
   </div>
 
   <div class="card">
@@ -743,7 +745,7 @@ function renderSet(){
     <div class="ch"><h3>App Setup</h3><span class="tag">v${APP_VER}</span></div>
     <div class="fld"><label>Account</label>
       <select id="sAcct">${accOpts||'<option value="">— koi nahi mila —</option>'}</select>
-      <div class="hint">EA v1.03 jis account pe chalega woh yahan apne aap aayega.</div></div>
+      <div class="hint">EA v1.04 jis account pe chalega woh yahan apne aap aayega.</div></div>
     <div class="fld"><label>Ya MT5 account number (login) manually</label><input id="sAcctM" inputmode="numeric" placeholder="e.g. 433468654" value=""><div class="hint">Sirf number (MT5 login). Naam neeche wale box mein. Number daalte hi Demo OFF ho jayega.</div></div>
     <div class="fld"><label>Is account ka naam (chip label)</label><input id="sLabel" placeholder="e.g. VPS-1 Gold" value="${esc(CFG.labels[CFG.acct]||'')}"></div>
     <div class="fld"><label>Opening balance (manual)</label><input id="sOpen" inputmode="decimal" placeholder="khali = EA se auto" value="${esc(CFG.opening[CFG.acct]||'')}">
@@ -764,7 +766,8 @@ function renderSet(){
     <div class="kv"><span>Max trades / side</span><b>${num(c.maxTrades)}</b></div>
     <div class="kv"><span>Avg TP per trade</span><b>$${num(c.avgTP).toFixed(1)}</b></div>
     <div class="kv"><span>Buy grid / Sell grid</span><b>${yes(c.buyGrid)} ${yes(c.sellGrid)}</b></div>
-    <div class="kv"><span>Trailing</span><b>${c.trailOn?'arm $'+c.trailAct+' · pull $'+c.trailPull:'OFF'}</b></div>
+    <div class="kv"><span>Trailing</span><b>${!c.trailOn?'OFF':c.trailScaled?'arm '+c.stArm+'% TP · lock '+c.stLock1+'→'+c.stLock2+'% peak':'arm $'+c.trailAct+' · pull $'+c.trailPull}</b></div>
+    ${c.flipCloseOn!=null?`<div class="kv"><span>Flip profit close</span><b>${c.flipCloseOn?'ON · min $'+num(c.flipCloseMin).toFixed(1):'OFF'}</b></div>`:''}
     <div class="kv"><span>Partial close</span><b>${c.partialOn?c.partialPct+'% · min '+c.partialMin+' trades':'OFF'}</b></div>
     <div class="kv"><span>Recovery hold</span><b>${c.recHoldOn?'last '+c.recHoldN+' · min '+c.recHoldMin:'OFF'}</b></div>
     <div class="kv"><span>DD flip</span><b>${L.flip&&L.flip.on?'$'+L.flip.limit+' · max '+L.flip.max+' · '+L.flip.cdMin+'m cd · '+L.flip.pauseHrs+'h pause':'OFF'}</b></div>
@@ -783,7 +786,7 @@ function renderSet(){
   <div class="card">
     <div class="ch"><h3>Setup Guide</h3><span class="tag a">1 baar</span></div>
     <div class="small"><ol>
-      <li>VPS pe <b>GridTrend_EA_Strategy2_v1_03.mq5</b> compile karke chart pe lagao (purana v1.02 hatao).</li>
+      <li>VPS pe <b>GridTrend_EA_Strategy2_v1_04.mq5</b> compile karke chart pe lagao (purana v1.03 hatao).</li>
       <li>MT5 → Tools → Options → Expert Advisors → <b>Allow WebRequest</b> list mein yeh URL hona chahiye:<pre class="code">${esc(DEF_FB)}</pre></li>
       <li>Firebase console → Realtime Database → <b>Rules</b> mein <b>gt2</b> block add karo (baaki blocks waise hi rehne do):<pre class="code">"gt2": {
   ".read": true,
@@ -834,7 +837,7 @@ function renderSet(){
 function emptyState(){
   return `<div class="card" style="text-align:center;padding:28px 18px">
     <div class="logo" style="justify-content:center;font-size:30px"><span class="gtxt">GRID</span><span class="two">2</span></div>
-    <p class="small" style="margin:12px 0 16px">${ST.err==='PERM'?'Firebase rules mein <b>gt2</b> add karna baaki hai.':'EA ka live data aane ka wait… (EA v1.03 + WebRequest URL)'}</p>
+    <p class="small" style="margin:12px 0 16px">${ST.err==='PERM'?'Firebase rules mein <b>gt2</b> add karna baaki hai.':'EA ka live data aane ka wait… (EA v1.04 + WebRequest URL)'}</p>
     <div class="btnrow" style="justify-content:center"><button class="btn" onclick="goView('set')">Setup kholo</button><button class="btn ghost" onclick="CFG.demo=true;CFG.acct='DEMO';CFG.accts=['DEMO'];saveCfg();init()">Demo dekho</button></div>
   </div>`;
 }
@@ -863,15 +866,15 @@ function demoLive(){
   const sum=d=>pos.filter(p=>p.d===d).reduce((a,p)=>a+p.pl,0),lots=d=>pos.filter(p=>p.d===d).reduce((a,p)=>a+p.lot,0);
   const bp=sum(1),sp=sum(-1),bal=10462.18,eq=+(bal+bp+sp).toFixed(2);
   const daily=[];for(let i=29;i>=0;i--){const d=new Date(Date.now()-i*864e5);daily.push({d:String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0'),p:i%6===3?-38.4-i:(i%7===0?0:+(12+Math.abs(Math.sin(i))*55).toFixed(2))})}
-  return {ver:'1.03',ea:'GridTrend S2 v1.03',ts:t-2,acct:'DEMO',name:'Ankush Demo',server:'Exness-MT5Trial',company:'Exness',cur:'USD',lev:500,demo:true,sym:'XAUUSDm',digits:dg,
+  return {ver:'1.04',ea:'GridTrend S2 v1.04',ts:t-2,acct:'DEMO',name:'Ankush Demo',server:'Exness-MT5Trial',company:'Exness',cur:'USD',lev:500,demo:true,sym:'XAUUSDm',digits:dg,
     bid:+bid.toFixed(dg),ask:+(bid+.25).toFixed(dg),spread:25,maxSpread:280,status:'RUNNING',
     bal,eq,margin:412.6,freeMargin:+(eq-412.6).toFixed(2),marginLevel:+(eq/412.6*100).toFixed(1),floating:+(bp+sp).toFixed(2),
     opening:10000,openingAuto:true,deposits:10000,withdrawals:0,
     pl:{today:48.2,week:131.75,month:462.18,all:462.18,todayDeals:6,allDeals:88},daily,
     cycle:{startBal:10000,profit:+(eq-10000).toFixed(2),target:500,on:true,count:0},
     sig:{sig:1,st:1,pend:0,pendN:0,confirmOn:true,confirmBars:2,tf:'H1',stPeriod:10,stMult:3},
-    buy:{n:2,lots:+lots(1).toFixed(2),avg:2638.6,pnl:+bp.toFixed(2),tp:2643.6,target:10,frozen:false,active:true,ddFrozen:false,on:true,peak:Math.max(0,bp),trailArmed:false,nextPx:2630.0,nextLot:.01,nextGap:6,start:t-3600*7,max:30},
-    sell:{n:5,lots:+lots(-1).toFixed(2),avg:2634.9,pnl:+sp.toFixed(2),tp:2627.4,target:25,frozen:true,active:true,ddFrozen:false,on:true,peak:0,trailArmed:false,nextPx:2650.9,nextLot:.02,nextGap:7,start:t-3600*8,max:30},
+    buy:{n:2,lots:+lots(1).toFixed(2),avg:2638.6,pnl:+bp.toFixed(2),tp:2643.6,target:10,frozen:false,active:true,ddFrozen:false,on:true,peak:Math.max(0,bp),trailArmed:false,trailArm:10,trailLock:0,nextPx:2630.0,nextLot:.01,nextGap:6,start:t-3600*7,max:30},
+    sell:{n:5,lots:+lots(-1).toFixed(2),avg:2634.9,pnl:+sp.toFixed(2),tp:2627.4,target:25,frozen:true,active:true,ddFrozen:false,on:true,peak:0,trailArmed:false,trailArm:15,trailLock:0,nextPx:2650.9,nextLot:.02,nextGap:7,start:t-3600*8,max:30},
     flip:{on:true,count:1,max:4,limit:400,frozenDir:0,pauseLeft:0,cdLeft:1460,unfreeze:.5,pauseHrs:6,cdMin:60,last:t-2140},
     dd:{pct:+(-(bp+sp)/bal*100).toFixed(2),usd:Math.max(0,-(bp+sp)),limit:2000,on:true,maxEver:6.84},
     basket:{on:true,rec:+(eq-10462.18).toFixed(2),target:52.31,startEq:10462.18,ageH:8.1,managing:true,guard:3,pct:.5},
@@ -879,7 +882,7 @@ function demoLive(){
     newsList:[{t:t+3600*5.2,imp:1,name:'Non-Farm Employment Change'},{t:t+3600*5.2,imp:1,name:'Unemployment Rate'}],
     perf:{wins:41,losses:3,wr:93.2,exp:9.84,avgWin:14.6,avgLoss:58.2,avgRec:5.4,profitSum:598.6,lossSum:174.6},
     last3:[],pos,
-    cfg:{magic:20250001,maxTrades:30,avgTP:5,trailOn:true,trailAct:45,trailPull:22,partialOn:true,partialPct:60,partialMin:6,recHoldOn:true,recHoldN:4,recHoldMin:10,
+    cfg:{magic:20250001,maxTrades:30,avgTP:5,trailOn:true,trailAct:45,trailPull:22,trailScaled:true,stArm:60,stLock1:50,stStage2:85,stLock2:75,flipCloseOn:true,flipCloseMin:5,partialOn:true,partialPct:60,partialMin:6,recHoldOn:true,recHoldN:4,recHoldMin:10,
       newsBefore:30,newsAfter:30,newsHigh:true,newsMed:false,spikeMove:30,spikeWin:5,spikeBlock:20,friStop:14,monStart:7,atrMax:3,buyGrid:true,sellGrid:true,push:true,pushSec:5,
       gaps:[5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13,14,14,15,15,16,16,17,17,18,18,19,0],
       lots:[.01,.01,.01,.02,.02,.02,.03,.03,.03,.04,.04,.04,.05,.05,.05,.06,.06,.06,.07,.07,.07,.08,.08,.08,.09,.09,.09,.1,.1,.1]}};
@@ -888,7 +891,7 @@ function demoEvents(){
   const t=nowSec();const E=[
     ['OPEN','BUY L2  0.01 lot @ 2636.00',900],['FLIP','DD FLIP #1: SELL side $-402.15 — FREEZE (khuli rahegi), BUY grid start',2140],
     ['OPEN','BUY L1  0.01 lot @ 2641.20',2141],['OPEN','SELL L5  0.02 lot @ 2643.90',5400],['SPIKE','VOLATILITY SPIKE! $31.40 move in 5min — new entries paused 20min',7200],
-    ['TP','TP HIT',11000],['OPEN','SELL L4  0.02 lot @ 2637.60',14000],['START','GridTrend S2 v1.03 start — XAUUSDm | Magic 20250001',30000]];
+    ['TP','TP HIT',11000],['OPEN','SELL L4  0.02 lot @ 2637.60',14000],['START','GridTrend S2 v1.04 start — XAUUSDm | Magic 20250001',30000]];
   return E.map((e,i)=>({k:'-demo'+(99-i),type:e[0],msg:e[1],t:t-e[2]}));
 }
 function demoCycles(){const t=nowSec();return [['SELL','TP_HIT',25.4,3.2],['BOTH','GLOBAL_TARGET',52.1,11.5],['BUY','TRAIL_LOCK',38.9,2.1],['BUY','TP_HIT',10.2,.8]].map((c,i)=>({k:'-c'+(9-i),dir:c[0],reason:c[1],profit:c[2],hrs:c[3],t:t-(i+1)*14000}))}
