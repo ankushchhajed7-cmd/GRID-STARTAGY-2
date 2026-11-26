@@ -1,7 +1,7 @@
 {
-  "name": "GRID 2",
-  "short_name": "GRID 2",
-  "description": "GridTrend EA Strategy 2 — live monitor (balance, profit, grid, risk, history)",
+  "name": "S6 LIVE",
+  "short_name": "S6 LIVE",
+  "description": "PERSONAL FX Strategy 6 (hedge ladder) — live monitor: balance, equity, ladder, risk, history",
   "id": "grid2-monitor-app",
   "start_url": "./?src=pwa",
   "scope": "./",
@@ -10,11 +10,29 @@
   "background_color": "#fff7fb",
   "theme_color": "#ff4f9a",
   "lang": "hi",
-  "categories": ["finance", "productivity"],
+  "categories": [
+    "finance",
+    "productivity"
+  ],
   "prefer_related_applications": false,
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }
