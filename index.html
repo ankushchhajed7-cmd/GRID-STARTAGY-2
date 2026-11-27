@@ -17,6 +17,7 @@
 <title>S6 LIVE</title>
 <!--
   S6 LIVE v2.1.0 (2026-11-27) — PERSONAL FX v9.0 Strategy 6 (hedge ladder) ka mobile monitor (PWA).
+  v2.2.2: sudhar soochi me "level khali rehna" (EA v9.1 ke liye, haal: agle version me) ek baar apne aap.
   v2.2.1: sudhar soochi me 27 Nov ke 9 naye point (DD −$67 ki wajah, net DD, SL net par?, demo test, VPS Helper …) ek baar apne aap.
   v2.2.0: CHECK me 📝 SUDHAR SOOCHI - gadbad / mismatch / sudhar ke point Firebase notes/ me (agle version ke liye);
           CHECK ki 🔴 / 🟡 line se ek click me jodo; haal: khula → agle version me → ho gaya (vX).
@@ -144,7 +145,7 @@ textarea{width:100%;min-height:70px;border-radius:12px;border:1px solid var(--pk
 <div id="toast"></div>
 <script>
 'use strict';
-const VER='2.2.1';
+const VER='2.2.2';
 const DEF_FB='https://forexdiagnosis-default-rtdb.asia-southeast1.firebasedatabase.app';
 const LS='s6live_cfg', LSC='s6live_cache';
 const $=id=>document.getElementById(id);
@@ -194,7 +195,7 @@ function demoData(){
 }
 
 async function load(full){
-  if(DEMO){demoData();if(!ST.notes){ST.notes={};SEED.concat(SEED2).forEach((x,i)=>ST.notes[x[0]]=seedObj(x,i*60))}
+  if(DEMO){demoData();if(!ST.notes){ST.notes={};SEED.concat(SEED2,SEED3).forEach((x,i)=>ST.notes[x[0]]=seedObj(x,i*60))}
     ST.err='';ST.at=Date.now();trackHits();render();return}
   if(!base()){ST.err='Firebase URL नहीं';render();return}
   try{
@@ -486,7 +487,10 @@ const SEED2=[
   ['n_size','i','Real account: demo में जो max DD आए वो balance का 10–15% से ज़्यादा न हो; real पर Basket SL ज़रूर ON'],
   ['n_vps','y','VPS Helper report ~55 दिन पुरानी (Helper v1.02) — VPS पर Helper (Task Scheduler) / Bridge EA चालू करना, तब compile नतीजा CHECK में दिखेगा'],
   ['n_sl0','i','Demo पर SL 0 हो तो CHECK में 🔴 की जगह 🟡 "test mode" दिखे']];
-const SEEDS=[['s6notes_seed_',SEED],['s6notes_seed2_',SEED2]];
+// v2.2.2: level khali rehna (27 Nov subah screenshot)
+const SEED3=[
+  ['n_lvgap','y','Level खाली रहना: बंद भाव वाला pending 1.5 point नियम में रुके तो ठीक level पर pending लगे, अगर वहाँ दूरी 1.5 से ज़्यादा हो (27 Nov सुबह: SELL 3613.63, 2 नंबर 3619.63 खाली रहा — उसका बंद भाव ~3620.6 खुले 3 नंबर 3621.24 से सिर्फ़ 0.64 दूर था, ठीक level पर 1.61 दूर होता) — EA v9.1','next','']];
+const SEEDS=[['s6notes_seed_',SEED],['s6notes_seed2_',SEED2],['s6notes_seed3_',SEED3]];
 const NK={r:['🔴','गड़बड़'],y:['🟡','मिसमैच'],i:['💡','सुधार']}, NS={open:'खुला',next:'अगले version में',done:'हो गया'};
 let NKIND='r', LASTD=[];
 const seedObj=(x,i)=>({t:Date.now()-i*1000,k:x[1],m:x[2],st:x[3]||'open',ver:x[4]||'',src:'shuru'});
