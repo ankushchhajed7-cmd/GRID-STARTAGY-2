@@ -17,6 +17,8 @@
 <title>S6 LIVE</title>
 <!--
   S6 LIVE v2.1.0 (2026-11-27) — PERSONAL FX v9.0 Strategy 6 (hedge ladder) ka mobile monitor (PWA).
+  v2.5.0: EA v10.1 (S6 naya plan): sahi settings tp/net/basket/cycle = $2, main lot = 1 x hedge lot (0.01),
+          version hint v10.1, CHECK me 'doosra BUY' setting.
   v2.3.1: user ne EA v9.1+ hataya (v9.0 se nayi shuruaat) - v2.4.0 ke v9.1 wale badlav wapas: CHECK me lock
           chalu +$2 hi sahi, 'jodi -$2' setting nahi, version hint v9.0.
   v2.3.0: LIVE me 🔮 AAGE KA ANDAAZA - cycle band equity (shuru balance + net / balance + basket / cycle), Basket SL
@@ -149,7 +151,7 @@ textarea{width:100%;min-height:70px;border-radius:12px;border:1px solid var(--pk
 <div id="toast"></div>
 <script>
 'use strict';
-const VER='2.3.1';
+const VER='2.5.0';
 const DEF_FB='https://forexdiagnosis-default-rtdb.asia-southeast1.firebasedatabase.app';
 const LS='s6live_cfg', LSC='s6live_cache';
 const $=id=>document.getElementById(id);
@@ -184,18 +186,18 @@ async function get(path,q){const r=await fetch(url(path,q),{cache:'no-store'});i
 /* ---------- demo data (?demo=1) ---------- */
 function demoData(){
   const now=Date.now(),o=3571.48,b=3559.2;
-  ST.hb={at:now,v:'9.0',strat:6,ta:true,ea:true,conn:true,ping:38,ml:2490.5,fm:4768.3,liveOn:true,push:5,manual:true,bal:4980.85,eq:4968.1,cur:'USD',demo:true,
-    cfg:{tp:3,gap:3,hlot:0.01,basket:5,cycle:3,net:6,sl:60,lock:1,arm:2,ahead:5},
+  ST.hb={at:now,v:'10.1',strat:6,ta:true,ea:true,conn:true,ping:38,ml:2490.5,fm:4768.3,liveOn:true,push:5,manual:true,bal:4980.85,eq:4968.1,cur:'USD',demo:true,
+    cfg:{tp:2,gap:3,hlot:0.01,basket:2,cycle:2,net:2,sl:60,lock:1,arm:2,ahead:5,b2:1},
     errs:[{t:now-42*60e3,m:'pending FAIL level 6 XAUUSDm @ 3553.480 [10016] Invalid stops'},{t:now-3*3600e3,m:'Firebase WebRequest error 5203'}],
     haal:Array.from({length:30},(_,i)=>({t:now-i*10e3,s:'XAUUSDm',o:+(-6.4+i*0.11).toFixed(2),b:2.1,n:+(-4.3+i*0.11).toFixed(2),h:4}))};
-  ST.vps={v:'1.07',at:Math.round(now/1000)-70,commit:'303971f',err:'',terms:[{name:'MetaTrader 5 EXNESS',run:true,files:[{f:'PERSONAL FX v9.0 - GRID.mq5',ok:true,ne:0,nw:2,at:Math.round(now/1000)-300,msg:['0 errors, 2 warnings']}]}]};
-  ST.live={XAUUSDm:{at:now,state:'RUN',sym:'XAUUSDm',dg:3,dir:'BUY',lot:0.02,open:o,tp:0,bid:b,ask:b+0.2,sp:0.2,gapPx:3,mpl:(b-o)*2,
+  ST.vps={v:'1.07',at:Math.round(now/1000)-70,commit:'303971f',err:'',terms:[{name:'MetaTrader 5 EXNESS',run:true,files:[{f:'PERSONAL FX v10.1 - GRID.mq5',ok:true,ne:0,nw:2,at:Math.round(now/1000)-300,msg:['0 errors, 2 warnings']}]}]};
+  ST.live={XAUUSDm:{at:now,state:'RUN',sym:'XAUUSDm',dg:3,dir:'BUY',lot:0.01,open:o,tp:0,bid:b,ask:b+0.2,sp:0.2,gapPx:3,mpl:(b-o)*1,
     hedges:[{n:1,o:3568.48,pl:9.08,lot:0.01,a:1},{n:2,o:3565.48,pl:6.08,lot:0.01,a:1},{n:3,o:3562.48,pl:3.08,lot:0.01,a:1},{n:4,o:3559.48,pl:0.08,lot:0.01,a:0}],
     pend:[{n:5,p:3556.48},{n:6,p:3553.48},{n:7,p:3550.48},{n:8,p:3547.48},{n:9,p:3544.48}],banked:2.1,start:now-54*60000,nh:4,used:6,dd:-14.2,bal:4980.85,eq:4968.1}};
   const L=ST.live.XAUUSDm;L.hpl=L.hedges.reduce((a,h)=>a+h.pl,0);L.tot=L.mpl+L.hpl;L.net=L.tot+L.banked;
   ST.events=[[now-60e3,'PERSONAL FX S6: HEDGE level 4 XAUUSDm SELL 0.01 @ 3559.480 | khule hedge 4 | sab milake $-6.40'],[now-9*60e3,'PERSONAL FX S6: LOCK XAUUSDm | 1 hedge band +$0.96 | baaki 3 hedge'],[now-54*60e3,'PERSONAL FX S6: naya cycle XAUUSDm BUY 0.02 @ 3571.480']].map(([t,m])=>({t,m}));
   const res=['TP','NET +$6','CYCLE TP +$3.12','BASKET TP +$5.04','TP','NET +$6','BASKET SL -$60.20'];
-  ST.cycles=res.map((r,i)=>({start:now-(i+2)*3.1e6,end:now-(i+2)*3.1e6+2.2e6,sym:'XAUUSDm',dir:i%2?'SELL':'BUY',lot:0.02,open:3570-i*4,res:r,pl:r.includes('SL')?-60.2:r==='TP'?6:+(5+Math.random()).toFixed(2),dd:-(5+i*4),hedges:i}));
+  ST.cycles=res.map((r,i)=>({start:now-(i+2)*3.1e6,end:now-(i+2)*3.1e6+2.2e6,sym:'XAUUSDm',dir:i%2?'SELL':'BUY',lot:0.01,open:3570-i*4,res:r,pl:r.includes('SL')?-60.2:r==='TP'?2:+(2+Math.random()).toFixed(2),dd:-(5+i*4),hedges:i}));
 }
 
 async function load(full){
@@ -416,7 +418,7 @@ function vSetup(){
     <label>Live key<small>EA input S6_LiveKey (default s6)</small></label><input id="sKey" value="${esc(CFG.key)}" autocomplete="off">
     <label>हर कितने sec update</label><input id="sSec" type="number" min="2" max="60" value="${CFG.sec}">
     <div class="btns"><button class="btn pk" onclick="saveSetup()">सेव + जाँच</button><button class="btn gh" onclick="location.search='?demo=1'">Demo देखो</button></div></div>
-    <div class="card"><h3>EA पर (VPS)</h3><div class="note">1. PERSONAL FX <b>v9.0</b> chart पर, <b>Strategy = 6</b>.<br>2. Inputs: <b>S6_LiveOn = true</b>, <b>S6_LiveKey</b> = ऊपर वाली key, FirebaseAuth भरा हुआ.<br>
+    <div class="card"><h3>EA पर (VPS)</h3><div class="note">1. PERSONAL FX <b>v10.1</b> chart पर, <b>Strategy = 6</b>.<br>2. Inputs: <b>S6_LiveOn = true</b>, <b>S6_LiveKey</b> = ऊपर वाली key, FirebaseAuth भरा हुआ.<br>
     3. MT5 → Tools → Options → Expert Advisors → WebRequest में Firebase URL (पहले से app bridge के लिए है).<br>4. Account number Firebase में नहीं जाता; balance / equity जाते हैं (Auth के पीछे).</div>
     <div class="note" style="margin-top:8px">S6 LIVE v${VER}</div></div>`;
 }
@@ -430,8 +432,8 @@ async function saveSetup(){
 
 
 /* ---------- v2.1.0: 🩺 CHECK ---------- */
-const WANT={strat:[6,'Strategy'],sl:[60,'Basket SL $'],arm:[2,'Lock चालू (+$)'],lock:[1,'Lock बंद (+$)'],ahead:[5,'Pending आगे'],net:[6,'Net (पक्का+खुले) $'],
-  tp:[3,'Main TP $ / 0.01'],gap:[3,'Gap $'],hlot:[0.01,'Hedge lot'],basket:[5,'Basket TP $'],cycle:[3,'Cycle TP $']};
+const WANT={strat:[6,'Strategy'],sl:[60,'Basket SL $'],arm:[2,'Lock चालू (+$)'],lock:[1,'Lock बंद (+$)'],ahead:[5,'Pending आगे'],net:[2,'Net (पक्का+खुले) $'],
+  tp:[2,'Main TP $ / 0.01'],gap:[3,'Gap $'],hlot:[0.01,'Hedge lot'],basket:[2,'Basket TP $'],cycle:[2,'Cycle TP $'],b2:[1,'दूसरा BUY (1 = चालू)']};
 function ruleOf(L,c){
   if(c.net>0&&L.net>=c.net)return 'Net '+usd(L.net)+' ≥ +$'+c.net;
   if(!L.nh){const t=c.tp*(L.lot/0.01);return t>0&&L.mpl>=t?'Main TP '+usd(L.mpl)+' ≥ +$'+t:''}
@@ -457,11 +459,11 @@ function vpsFiles(){             // har terminal me sabse naya PERSONAL FX file 
 }
 function diag(){                 // [{l:'r'|'y'|'g', g:'A'..'D', t, d}]
   const D=[],add=(l,g,t,d)=>D.push({l,g,t,d:d||''}),h=ST.hb,c=cfgOf();
-  if(!h){add('r','A','EA का data नहीं आया','PERSONAL FX v9.0 chart पर लगाओ, S6_LiveOn = true, SETUP में key जाँचो');return D}
+  if(!h){add('r','A','EA का data नहीं आया','PERSONAL FX v10.1 chart पर लगाओ, S6_LiveOn = true, SETUP में key जाँचो');return D}
   const age=Date.now()-(h.at||0),v=parseFloat(h.v||'0');
   if(age>90000)add('r','A','EA बंद / data रुका — '+ago(h.at)+' पहले','MT5 / VPS चालू है? EA chart पर है? इंटरनेट?');
   else add('g','A','EA चालू · v'+(h.v||'—'),'data '+ago(h.at)+' पहले');
-  if(v<9)add('y','A','EA पुराना (v'+(h.v||'—')+') — v9.0 लगाओ','v9.0 के बिना MT5 / setting / गलती की जाँच अधूरी');
+  if(v<10.1)add('y','A','EA पुराना (v'+(h.v||'—')+') — v10.1 लगाओ',v<9?'v9.0 के बिना MT5 / setting / गलती की जाँच अधूरी':'v10.1 = नया प्लान: main 0.01, सब target $2, दूसरा BUY');
   if(v>=9){
     if(h.strat!=null&&+h.strat!==6)add('r','B','Strategy = '+h.strat+' (6 होना चाहिए)','EA inputs में Strategy = 6');
     if(h.ta===false)add('r','A','MT5 में Algo Trading बंद','ऊपर toolbar का "Algo Trading" बटन हरा करो');
@@ -499,7 +501,7 @@ function diag(){                 // [{l:'r'|'y'|'g', g:'A'..'D', t, d}]
     const np=(L.pend||[]).length;
     if(np<c.ahead)add('y','C',sym+': pending '+np+' / '+c.ahead,np===0?'कोई pending नहीं — margin / MaxOpenTrades / Journal देखो':'कुछ level भाव से पीछे या hedge के पास (1.5 पॉइंट नियम) — अपने आप ठीक हो सकता है');
     if(L.sp!=null&&L.sp>gap*0.2)add('y','D',sym+': spread ज़्यादा '+L.sp,'news / रात का समय? lock / TP देर से');
-    if(c.hlot&&Math.abs(L.lot-2*c.hlot)>1e-9)add('y','B',sym+': main lot '+(+L.lot).toFixed(2)+' ≠ 2 × hedge '+c.hlot,'नियम main = 2 × hedge lot पर बना है');
+    if(c.hlot&&Math.abs(L.lot-c.hlot)>1e-9)add('y','B',sym+': main lot '+(+L.lot).toFixed(2)+' ≠ hedge lot '+c.hlot,'v10.1 का नियम main = hedge lot (0.01) पर बना है');
   });
   return D;
 }
@@ -529,7 +531,7 @@ function vCheck(){
     return `<tr><td>${WANT[k][1]}</td><td class="mono ${a==null?'':bad?'bad':'okc'}">${a==null?'—':a}</td><td class="mono">${WANT[k][0]}</td></tr>`}).join('')}
     <tr><td>S6_LiveOn / push sec</td><td class="mono ${h.liveOn===false||(h.push!=null&&+h.push!==5)?'bad':''}">${h.liveOn==null?'—':h.liveOn?'ON':'OFF'} / ${h.push==null?'—':h.push}</td><td class="mono">ON / 5</td></tr>
     <tr><td>ManageManualTrades</td><td class="mono ${h.manual===false?'bad':''}">${h.manual==null?'—':h.manual?'true':'false'}</td><td class="mono">true</td></tr>
-    ${runs().map(L=>`<tr><td>${esc(L.sym)} main lot</td><td class="mono ${Math.abs(L.lot-2*(c.hlot||0.01))>1e-9?'bad':'okc'}">${(+L.lot).toFixed(2)}</td><td class="mono">${(2*(c.hlot||0.01)).toFixed(2)}</td></tr>`).join('')}</table>
+    ${runs().map(L=>`<tr><td>${esc(L.sym)} main lot</td><td class="mono ${Math.abs(L.lot-(c.hlot||0.01))>1e-9?'bad':'okc'}">${(+L.lot).toFixed(2)}</td><td class="mono">${(+(c.hlot||0.01)).toFixed(2)}</td></tr>`).join('')}</table>
     ${D.filter(x=>x.g==='B').length?sec('B','').replace(/^<div class="card"><h3><\/h3>/,'<div style="margin-top:8px">'):''}</div>`;
   out+=sec('C','C · नियम की चेतावनी');
   // D: margin, errors, haal
@@ -552,7 +554,7 @@ const SEED=[
   ['n_stuck','y','लंबी एक-तरफ़ा चाल में नीचे की जोड़ी अटकती है; Basket SL −$60 महीने में 2-3 बार लग सकता है — कोई और बचाव?'],
   ['n_friday','i','Friday को बाज़ार बंद होने तक cycle खुला रहे तो कोई नियम नहीं (weekend gap का जोखिम)'],
   ['n_hist','i','पुराने cycles की जाँच: नियम पूरा होकर भी देर से बंद हुआ हो तो HISTORY में भी पकड़ना'],
-  ['n_v90','r','v9.0 का VPS पर compile + असली account पर चलना अभी पक्का नहीं — CHECK में देखो']];
+  ['n_v101','r','v10.1 का VPS पर compile + demo पर चलना अभी पक्का नहीं — CHECK में देखो']];
 // v2.2.1: 27 Nov ki baat-cheet ke point (DD / SL / VPS) - ek baar jude, user ne kaha "sab app me note karo"
 const SEED2=[
   ['n_dd67','r','27 Nov DD −$67 (v8.7, SELL 3613.63, 29 hedge) की वजह: ऊपर की जोड़ी का lock चालू नहीं हुआ (v8.8 में ठीक) + app data भेजते समय EA रुकता था, net +$6 छूटा (v8.9 में ठीक) + Basket SL lot से गुणा होकर −$120 बना (v8.9 में ठीक)','done','EA v8.8 / v8.9'],
@@ -623,7 +625,7 @@ function render(){
   if(!DEMO&&CFG.tab!=='setup'){
     if(ST.err==='PERM')h+=`<div class="card"><div class="empty">🔐 Firebase ने मना किया — SETUP में <b>Firebase Auth</b> डालो।</div></div>`;
     else if(ST.err&&!ST.hb)h+=`<div class="card"><div class="empty">⚠️ ${esc(ST.err)}</div></div>`;
-    else if(!ST.hb)h+=`<div class="card"><div class="empty">EA का data अभी नहीं आया।<br>PERSONAL FX v9.0 (Strategy 6, S6_LiveOn = true) चालू करो।<br>SETUP में key "${esc(CFG.key)}" जाँचो।</div></div>`;
+    else if(!ST.hb)h+=`<div class="card"><div class="empty">EA का data अभी नहीं आया।<br>PERSONAL FX v10.1 (Strategy 6, S6_LiveOn = true) चालू करो।<br>SETUP में key "${esc(CFG.key)}" जाँचो।</div></div>`;
   }
   if(CFG.tab!=='setup')h+=banner();
   h+=({live:vLive,ladder:vLadder,risk:vRisk,history:vHistory,check:vCheck,setup:vSetup}[CFG.tab]||vLive)();
