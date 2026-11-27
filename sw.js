@@ -1,7 +1,7 @@
-/* S6 LIVE service worker — v2.0.0 (pehle GRID 2)
+/* S6 LIVE service worker — v2.1.0 (pehle GRID 2)
    App shell: network-first (naya build turant milega), offline pe cache.
    Firebase data: hamesha network (kabhi cache nahi). */
-const CACHE='s6live-v2.0.0';
+const CACHE='s6live-v2.1.0';
 const SHELL=['./','./index.html','./manifest.json','./icon-192.png','./icon-512.png','./icon-maskable-512.png'];
 
 self.addEventListener('install',e=>{
