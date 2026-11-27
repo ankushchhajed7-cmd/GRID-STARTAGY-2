@@ -17,6 +17,8 @@
 <title>S6 LIVE</title>
 <!--
   S6 LIVE v2.1.0 (2026-11-27) — PERSONAL FX v9.0 Strategy 6 (hedge ladder) ka mobile monitor (PWA).
+  v2.3.0: LIVE me 🔮 AAGE KA ANDAAZA - cycle band equity (shuru balance + net / balance + basket / cycle), Basket SL
+          equity line, seedhi chaal upar / neeche kis bhaav par kaunsa niyam (simulation). Har live update par badalta hai.
   v2.2.2: sudhar soochi me "level khali rehna" (EA v9.1 ke liye, haal: agle version me) ek baar apne aap.
   v2.2.1: sudhar soochi me 27 Nov ke 9 naye point (DD −$67 ki wajah, net DD, SL net par?, demo test, VPS Helper …) ek baar apne aap.
   v2.2.0: CHECK me 📝 SUDHAR SOOCHI - gadbad / mismatch / sudhar ke point Firebase notes/ me (agle version ke liye);
@@ -145,7 +147,7 @@ textarea{width:100%;min-height:70px;border-radius:12px;border:1px solid var(--pk
 <div id="toast"></div>
 <script>
 'use strict';
-const VER='2.2.2';
+const VER='2.3.0';
 const DEF_FB='https://forexdiagnosis-default-rtdb.asia-southeast1.firebasedatabase.app';
 const LS='s6live_cfg', LSC='s6live_cache';
 const $=id=>document.getElementById(id);
@@ -246,6 +248,79 @@ function prog(label,val,target,kind){
   return `<div class="bl"><span>${label}</span><b class="mono ${cls(val)}">${usd(val)} / ${kind==='r'?'−':'+'}$${Math.abs(target)}</b></div><div class="bar ${kind||''}"><i style="width:${p}%"></i></div>`;
 }
 
+/* ---------- v2.3.0: 🔮 AAGE KA ANDAAZA ----------
+   Equity: cycle shuru balance B0 = balance − pakka. Net: eq ≥ B0+net · Basket: eq ≥ bal+basket (main ghate me)
+   · Cycle: eq ≥ bal+cycle (main faayde me) · SL: eq ≤ bal−sl. Har +$1 pakka par bal / SL / basket / cycle line $1 upar.
+   Bhaav: seedhi chaal (upar / neeche) ka simulation - pending bharte hain (aage naye level bhi), armed hedge
+   +lock par band (sirf sabse gehra - LIFO), jodi (gehre 2) +lock par, phir EA ke niyam. Spread / slippage / chop nahi. */
+function simMove(L,c,s){                 // s = +1 bhaav upar, -1 neeche
+  const gapPx=+L.gapPx||c.gap,K=c.gap/(0.01*gapPx),dm=L.dir==='BUY'?1:-1,dh=-dm,hl=c.hlot||0.01;
+  const P0=((+L.bid)+(+L.ask))/2,step=gapPx/60,lockF=l=>c.lock*(l/0.01),armF=l=>Math.max(c.lock,c.arm)*(l/0.01);
+  const tpUsd=c.tp*(L.lot/0.01);
+  let H=(L.hedges||[]).map(h=>({o:+h.o,lot:+h.lot||hl,pl0:+h.pl,P0,a:!!h.a})),banked=+L.banked||0,pairA=false;
+  const used=new Set(H.map(h=>h.o.toFixed(2)));
+  let pend=(L.pend||[]).map(x=>({n:+x.n,p:+x.p}));
+  const maxN=Math.max(0,...pend.map(x=>x.n),...(L.hedges||[]).map(h=>+h.n||0));
+  for(let n=maxN+1;n<=maxN+60;n++)pend.push({n,p:+L.open+dh*n*gapPx});      // aage ke naye level (EA "ahead" bharta rehta hai)
+  const plH=(h,P)=>h.pl0+dh*(P-h.P0)*h.lot*K, mpl=P=>(+L.mpl)+dm*(P-P0)*L.lot*K;
+  const depth=h=>dh*(h.o-L.open);       // main se doori (bada = gehra)
+  let worst=Infinity,worstP=P0;
+  for(let i=1;i<=2400;i++){
+    const P=P0+s*i*step;
+    // pending bhare (STOP: hedge ki disha me bhaav paar)
+    pend=pend.filter(x=>{if(dh>0?P>=x.p:P<=x.p){H.push({o:x.p,lot:hl,pl0:0,P0:x.p,a:false});
+      if(H.length>=2){H.sort((a,b)=>depth(a)-depth(b));const d1=H[H.length-1],d2=H[H.length-2];if(plH(d1,P)+plH(d2,P)>lockF(d1.lot))pairA=true}
+      return false}return true});
+    H.sort((a,b)=>depth(a)-depth(b));
+    H.forEach(h=>{if(!h.a&&plH(h,P)>=armF(h.lot))h.a=true});
+    // lock: sirf sabse gehra (LIFO)
+    for(let g=0;g<200&&H.length;g++){
+      const d1=H[H.length-1],p1=plH(d1,P);
+      if(d1.a&&p1<=lockF(d1.lot)){banked+=p1;H.pop();pairA=false;continue}
+      if(!d1.a&&H.length>=2){const d2=H[H.length-2],cb=p1+plH(d2,P);if(cb>lockF(d1.lot))pairA=true;
+        if(pairA&&cb<=lockF(d1.lot)){banked+=cb;H.pop();H.pop();pairA=false;continue}}
+      break}
+    const m=mpl(P),tot=m+H.reduce((a,h)=>a+plH(h,P),0),net=banked+tot;
+    if(tot<worst){worst=tot;worstP=P}
+    const done=(why)=>({P,why,res:net,tot,banked,worst,worstP,nh:H.length});
+    if(c.net>0&&net>=c.net)return done('NET +$'+c.net);
+    if(!H.length){if(tpUsd>0&&m>=tpUsd)return done('MAIN TP')}
+    else{const need=m>=0?c.cycle:c.basket;if(need>0&&tot>=need)return done((m>=0?'CYCLE':'BASKET')+' TP');
+      if(c.sl>0&&tot<=-c.sl)return done('BASKET SL')}
+  }
+  return {P:null,worst,worstP};
+}
+function vAage(L){
+  const c=cfgOf(),h=ST.hb||{},dg=L.dg||2;
+  const bal=+(L.bal!=null?L.bal:h.bal),eq=+(L.eq!=null?L.eq:h.eq);
+  if(!isFinite(bal)||!isFinite(eq))return '';
+  const banked=+L.banked||0,B0=bal-banked,mainLoss=L.mpl<0;
+  const T=[];
+  if(c.net>0)T.push(['Net (शुरू balance + $'+c.net+')',B0+c.net]);
+  if(!L.nh)T.push(['Main TP',bal+c.tp*(L.lot/0.01)]);
+  else T.push(mainLoss?['Basket (balance + $'+c.basket+')',bal+c.basket]:['Cycle (balance + $'+c.cycle+')',bal+c.cycle]);
+  const first=T.reduce((a,b)=>b[1]<a[1]?b:a),left=first[1]-eq;
+  const slE=c.sl>0&&L.nh?bal-c.sl:null;
+  const pr=Math.max(0,Math.min(100,(eq-(slE!=null?slE:eq-20))/((first[1])-(slE!=null?slE:eq-20))*100));
+  const row=(ic,r,dir)=>{if(!r||r.P==null)return `<div class="bl"><span>${ic} सीधा ${dir}</span><b>${40}× gap तक कुछ नहीं</b></div>`;
+    const sl=/SL/.test(r.why),eqAt=B0+r.res;
+    return `<div class="bl"><span>${ic} सीधा ${dir} ~<b class="mono">${r.P.toFixed(dg)}</b></span><b class="${sl?'neg':'pos'}">${r.why} · ${usd(r.res)}</b></div>
+      <div class="note">equity ~${usd0(eqAt)} · रास्ते में सबसे बुरा खुले ${usd(Math.min(r.worst,L.tot))} (~${r.worstP.toFixed(dg)})</div>`};
+  let up=null,dn=null;try{up=simMove(L,c,1);dn=simMove(L,c,-1)}catch(e){}
+  const slTxt=c.sl>0?([up,dn].some(r=>r&&r.why==='BASKET SL')?'सीधी चाल में लग सकता है — ऊपर देखो':'सीधी चाल में नहीं लगेगा — सिर्फ़ ऊपर-नीचे (chop) में'):'';
+  return `<div class="card"><h3>🔮 आगे का अंदाज़ा</h3>
+    <div class="tiles t3"><div class="tile"><small>शुरू balance</small><b class="mono">${usd0(B0)}</b></div>
+    <div class="tile"><small>पक्का</small><b class="mono ${cls(banked)}">${usd(banked)}</b></div>
+    <div class="tile"><small>खुले</small><b class="mono ${cls(L.tot)}">${usd(L.tot)}</b></div></div>
+    <div class="bl"><span>🎯 Cycle बंद: equity ≈</span><b class="mono pos">${usd0(first[1])}</b></div>
+    <div class="note">${esc(first[0])} · अभी ${usd0(eq)} · <b>${left>0?'$'+left.toFixed(2)+' बाकी':'पहुँच गया'}</b></div>
+    <div class="bar g"><i style="width:${pr}%"></i></div>
+    ${T.length>1?`<div class="note" style="margin-top:4px">${T.map(t=>esc(t[0])+': '+usd0(t[1])).join(' · ')}</div>`:''}
+    <div class="bl"><span>🛑 Basket SL: equity ≤</span><b class="mono neg">${slE!=null?usd0(slE):(c.sl>0?'(hedge खुलने पर)':'OFF')}</b></div>
+    ${slE!=null?`<div class="note">अभी से $${(eq-slE).toFixed(2)} दूर · हर +$1 पक्का पर ये लाइन $1 ऊपर · ${slTxt}</div>`:''}
+    <div style="margin-top:6px">${row('⬆️',up,'ऊपर')}${row('⬇️',dn,'नीचे')}</div>
+    <div class="note" style="margin-top:6px">अंदाज़ा: pending भरना, lock, जोड़ी और EA के नियम गिने हैं; spread / slippage / बीच की हलचल नहीं — असली भाव 1–2 point आगे-पीछे। हर ~5 sec बदलता है।</div></div>`;
+}
 function liveCard(L){
   const c=cfgOf(),dg=L.dg||2,price=L.dir==='BUY'?L.bid:L.ask,mainLoss=L.mpl<0;
   const head=`<div class="hero"><div class="r1"><span>${esc(L.sym)} · ${hm(L.start)} से (${dur(Date.now()-L.start)})</span><span class="dir">${L.dir} ${(+L.lot).toFixed(2)}</span></div>
@@ -255,7 +330,7 @@ function liveCard(L){
   if(!L.nh){const tpUsd=c.tp*(L.lot/0.01);bars=prog('Main TP तक',L.mpl,tpUsd,'g')+`<div class="note" style="margin-top:6px">कोई hedge नहीं — main अपने TP ${L.tp?(+L.tp).toFixed(dg):''} (+$${tpUsd.toFixed(0)}) पर बंद होगा</div>`}
   else{bars=prog('Net (पक्का + खुले) → cycle बंद',L.net,c.net,'g')+(mainLoss?prog('Basket (main घाटे में) → सब बंद',L.tot,c.basket):prog('Cycle (main फ़ायदे में) → सब बंद',L.tot,c.cycle))
     +(c.sl>0?prog('Basket SL तक',Math.min(0,L.tot),-c.sl,'r'):'')}
-  return head+`<div class="card"><h3>बंद होने के नियम</h3>${bars}</div>`;
+  return head+`<div class="card"><h3>बंद होने के नियम</h3>${bars}</div>`+vAage(L);
 }
 
 function vLive(){
