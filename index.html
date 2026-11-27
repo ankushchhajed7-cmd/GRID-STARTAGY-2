@@ -17,6 +17,7 @@
 <title>S6 LIVE</title>
 <!--
   S6 LIVE v2.1.0 (2026-11-27) — PERSONAL FX v9.0 Strategy 6 (hedge ladder) ka mobile monitor (PWA).
+  v2.2.1: sudhar soochi me 27 Nov ke 9 naye point (DD −$67 ki wajah, net DD, SL net par?, demo test, VPS Helper …) ek baar apne aap.
   v2.2.0: CHECK me 📝 SUDHAR SOOCHI - gadbad / mismatch / sudhar ke point Firebase notes/ me (agle version ke liye);
           CHECK ki 🔴 / 🟡 line se ek click me jodo; haal: khula → agle version me → ho gaya (vX).
   v2.1.0: 🩺 CHECK tab (EA / MT5 haal, VPS Helper compile, setting jaanch, niyam ki chetavni, EA ki galti, HAAL log)
@@ -143,7 +144,7 @@ textarea{width:100%;min-height:70px;border-radius:12px;border:1px solid var(--pk
 <div id="toast"></div>
 <script>
 'use strict';
-const VER='2.2.0';
+const VER='2.2.1';
 const DEF_FB='https://forexdiagnosis-default-rtdb.asia-southeast1.firebasedatabase.app';
 const LS='s6live_cfg', LSC='s6live_cache';
 const $=id=>document.getElementById(id);
@@ -193,7 +194,7 @@ function demoData(){
 }
 
 async function load(full){
-  if(DEMO){demoData();if(!ST.notes){ST.notes={};SEED.forEach((x,i)=>ST.notes[x[0]]={t:Date.now()-i*6e4,k:x[1],m:x[2],st:'open',ver:'',src:'shuru'})}
+  if(DEMO){demoData();if(!ST.notes){ST.notes={};SEED.concat(SEED2).forEach((x,i)=>ST.notes[x[0]]=seedObj(x,i*60))}
     ST.err='';ST.at=Date.now();trackHits();render();return}
   if(!base()){ST.err='Firebase URL नहीं';render();return}
   try{
@@ -204,7 +205,7 @@ async function load(full){
       const [ev,cy]=await Promise.all([get('events','orderBy=%22$key%22&limitToLast=80'),get('cycles','orderBy=%22$key%22&limitToLast=400')]);
       ST.events=Object.values(ev||{}).sort((a,b)=>b.t-a.t);
       ST.cycles=Object.values(cy||{}).sort((a,b)=>b.end-a.end);
-      try{ST.notes=await get('notes')||{};if(!Object.keys(ST.notes).length)await seedNotes()}catch(e){}
+      try{ST.notes=await get('notes')||{};await seedNotes()}catch(e){}
     }
     if(full||Date.now()-ST.vpsAt>60000){
       ST.vpsAt=Date.now();
@@ -474,12 +475,29 @@ const SEED=[
   ['n_friday','i','Friday को बाज़ार बंद होने तक cycle खुला रहे तो कोई नियम नहीं (weekend gap का जोखिम)'],
   ['n_hist','i','पुराने cycles की जाँच: नियम पूरा होकर भी देर से बंद हुआ हो तो HISTORY में भी पकड़ना'],
   ['n_v90','r','v9.0 का VPS पर compile + असली account पर चलना अभी पक्का नहीं — CHECK में देखो']];
+// v2.2.1: 27 Nov ki baat-cheet ke point (DD / SL / VPS) - ek baar jude, user ne kaha "sab app me note karo"
+const SEED2=[
+  ['n_dd67','r','27 Nov DD −$67 (v8.7, SELL 3613.63, 29 hedge) की वजह: ऊपर की जोड़ी का lock चालू नहीं हुआ (v8.8 में ठीक) + app data भेजते समय EA रुकता था, net +$6 छूटा (v8.9 में ठीक) + Basket SL lot से गुणा होकर −$120 बना (v8.9 में ठीक)','done','EA v8.8 / v8.9'],
+  ['n_ddtest','i','Demo test: Basket SL 0 करके 1–2 हफ़्ते चलाओ — bug ठीक होने के बाद असली max DD कितना जाता है (CHECK का HAAL + HISTORY का DD देखो)'],
+  ['n_netdd','i','App में "net DD" भी दिखाना — अभी DD सिर्फ़ खुले trades का है; पक्का + खुले मिलाकर सबसे बुरा भी दिखे'],
+  ['n_slnet','y','Basket SL अभी सिर्फ़ खुले trades पर गिना जाता है (पक्का +$ नहीं गिनता) — net (पक्का + खुले) −60 पर लगाना? पहले backtest करके तय'],
+  ['n_chop','y','DD की असली वजह: main 0.02 = $2/point, हर hedge 0.01 = $1/point; बहुत hedge खुले हों और भाव पलटे तो जो hedge +$2 तक नहीं पहुँचे वो घाटे में जाते हैं (chop में DD बढ़ता है)'],
+  ['n_time','i','Main trade का समय: news के ±30 min और बहुत तेज़ हलचल में main न लो (news नियम के साथ तय करना)'],
+  ['n_size','i','Real account: demo में जो max DD आए वो balance का 10–15% से ज़्यादा न हो; real पर Basket SL ज़रूर ON'],
+  ['n_vps','y','VPS Helper report ~55 दिन पुरानी (Helper v1.02) — VPS पर Helper (Task Scheduler) / Bridge EA चालू करना, तब compile नतीजा CHECK में दिखेगा'],
+  ['n_sl0','i','Demo पर SL 0 हो तो CHECK में 🔴 की जगह 🟡 "test mode" दिखे']];
+const SEEDS=[['s6notes_seed_',SEED],['s6notes_seed2_',SEED2]];
 const NK={r:['🔴','गड़बड़'],y:['🟡','मिसमैच'],i:['💡','सुधार']}, NS={open:'खुला',next:'अगले version में',done:'हो गया'};
 let NKIND='r', LASTD=[];
-async function seedNotes(){
-  const k='s6notes_seed_'+CFG.key;try{if(localStorage.getItem(k))return}catch(e){}
-  const o={};SEED.forEach((x,i)=>o[x[0]]={t:Date.now()-i*1000,k:x[1],m:x[2],st:'open',ver:'',src:'shuru'});
-  await send('notes','PATCH',o);ST.notes=Object.assign({},o,ST.notes);try{localStorage.setItem(k,'1')}catch(e){}
+const seedObj=(x,i)=>({t:Date.now()-i*1000,k:x[1],m:x[2],st:x[3]||'open',ver:x[4]||'',src:'shuru'});
+async function seedNotes(){                            // har batch ek hi baar (is phone par flag), sirf jo id nahi hai wahi
+  for(const [pre,list] of SEEDS){
+    const k=pre+CFG.key;try{if(localStorage.getItem(k))continue}catch(e){}
+    if(pre==='s6notes_seed_'&&Object.keys(ST.notes||{}).length){try{localStorage.setItem(k,'1')}catch(e){}continue}
+    const o={};list.forEach((x,i)=>{if(!(ST.notes||{})[x[0]])o[x[0]]=seedObj(x,i)});
+    if(Object.keys(o).length)await send('notes','PATCH',o);
+    ST.notes=Object.assign({},o,ST.notes);try{localStorage.setItem(k,'1')}catch(e){}
+  }
 }
 async function noteSave(id,obj){                       // obj null = hatao
   if(!ST.notes)ST.notes={};
