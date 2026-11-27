@@ -17,6 +17,8 @@
 <title>S6 LIVE</title>
 <!--
   S6 LIVE v2.1.0 (2026-11-27) — PERSONAL FX v9.0 Strategy 6 (hedge ladder) ka mobile monitor (PWA).
+  v2.2.0: CHECK me 📝 SUDHAR SOOCHI - gadbad / mismatch / sudhar ke point Firebase notes/ me (agle version ke liye);
+          CHECK ki 🔴 / 🟡 line se ek click me jodo; haal: khula → agle version me → ho gaya (vX).
   v2.1.0: 🩺 CHECK tab (EA / MT5 haal, VPS Helper compile, setting jaanch, niyam ki chetavni, EA ki galti, HAAL log)
           + har tab ke upar 🟢 / 🟡 / 🔴 patti. MT5 khole bina sab jaanch.
   Pehle yahi repo GRID 2 (GridTrend S2) tha; wo account band, ab ye app S6 ke liye (purana code git history me).
@@ -116,6 +118,14 @@ nav.bn button.on{color:var(--pk2);background:var(--pkL)}
 td.bad{color:var(--r);font-weight:800}td.okc{color:var(--g)}
 .lg{font-family:var(--mono);font-size:11px;line-height:1.55;white-space:nowrap;overflow-x:auto}
 .lg div{padding:2px 0;border-top:1px dashed var(--line)}
+textarea{width:100%;min-height:70px;border-radius:12px;border:1px solid var(--pkS);padding:10px 12px;font-family:inherit;font-size:13px;background:#fff;color:var(--ink);resize:vertical}
+.nt{display:grid;grid-template-columns:22px 1fr auto;gap:6px;align-items:start;padding:9px 0;border-top:1px solid var(--line);font-size:12.5px;line-height:1.5}
+.nt:first-of-type{border-top:0}.nt small{display:block;color:var(--mut);font-size:10.5px}
+.nt.done .m{text-decoration:line-through;color:var(--mut)}
+.chip{font-size:10.5px;font-weight:800;border-radius:8px;padding:3px 7px;border:0;font-family:inherit;white-space:nowrap;cursor:pointer}
+.chip.open{background:var(--rL);color:var(--r)}.chip.next{background:var(--amL);color:var(--am)}.chip.done{background:var(--gL);color:var(--g)}
+.chip.del{background:#f1e6ec;color:var(--mut);margin-top:4px;display:block;width:100%}
+.addn{font-size:10.5px;font-weight:800;border:1px solid var(--pkS);background:#fff;color:var(--pk3);border-radius:8px;padding:2px 7px;margin-top:4px;cursor:pointer;font-family:inherit}
 #toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:12px;font-size:12.5px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:9}
 #toast.on{opacity:1}
 </style>
@@ -133,7 +143,7 @@ td.bad{color:var(--r);font-weight:800}td.okc{color:var(--g)}
 <div id="toast"></div>
 <script>
 'use strict';
-const VER='2.1.0';
+const VER='2.2.0';
 const DEF_FB='https://forexdiagnosis-default-rtdb.asia-southeast1.firebasedatabase.app';
 const LS='s6live_cfg', LSC='s6live_cache';
 const $=id=>document.getElementById(id);
@@ -153,14 +163,16 @@ let CFG={fb:DEF_FB,auth:'',key:'s6',sec:3,tab:'live'};
 try{Object.assign(CFG,JSON.parse(localStorage.getItem(LS)||'{}'))}catch(e){}
 const DEMO=/[?&]demo=1/.test(location.search);
 function saveCfg(){try{localStorage.setItem(LS,JSON.stringify(CFG))}catch(e){}}
-const ST={hb:null,live:{},events:[],cycles:[],err:'',at:0,evAt:0,vps:null,vpsAt:0,vpsErr:'',hit:{}};
-try{const c=JSON.parse(localStorage.getItem(LSC)||'null');if(c&&c.key===CFG.key){ST.hb=c.hb;ST.live=c.live||{};ST.events=c.events||[];ST.cycles=c.cycles||[]}}catch(e){}
+const ST={hb:null,live:{},events:[],cycles:[],err:'',at:0,evAt:0,vps:null,vpsAt:0,vpsErr:'',hit:{},notes:null,nf:'open'};
+try{const c=JSON.parse(localStorage.getItem(LSC)||'null');if(c&&c.key===CFG.key){ST.hb=c.hb;ST.live=c.live||{};ST.events=c.events||[];ST.cycles=c.cycles||[];ST.notes=c.notes||null}}catch(e){}
 
 function base(){let u=String(CFG.fb||'').trim().replace(/\/+$/,'');if(u&&!/^https?:\/\//.test(u))u='https://'+u;return u}
 function url(path,q){const k=String(CFG.key||'s6').replace(/[.$#\[\]\/ ]/g,'_');
   let u=base()+'/personalfx/s6live/'+k+'/'+path+'.json';const p=[];if(CFG.auth)p.push('auth='+encodeURIComponent(CFG.auth));if(q)p.push(q);return p.length?u+'?'+p.join('&'):u}
 async function getRaw(path){let u=base()+'/'+path+'.json';if(CFG.auth)u+='?auth='+encodeURIComponent(CFG.auth);
   const r=await fetch(u,{cache:'no-store'});if(r.status===401||r.status===403)throw new Error('PERM');if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
+async function send(path,method,obj){const r=await fetch(url(path),{method,body:obj==null?undefined:JSON.stringify(obj)});
+  if(r.status===401||r.status===403)throw new Error('PERM');if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
 async function get(path,q){const r=await fetch(url(path,q),{cache:'no-store'});if(r.status===401||r.status===403)throw new Error('PERM');if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
 
 /* ---------- demo data (?demo=1) ---------- */
@@ -181,7 +193,8 @@ function demoData(){
 }
 
 async function load(full){
-  if(DEMO){demoData();ST.err='';ST.at=Date.now();trackHits();render();return}
+  if(DEMO){demoData();if(!ST.notes){ST.notes={};SEED.forEach((x,i)=>ST.notes[x[0]]={t:Date.now()-i*6e4,k:x[1],m:x[2],st:'open',ver:'',src:'shuru'})}
+    ST.err='';ST.at=Date.now();trackHits();render();return}
   if(!base()){ST.err='Firebase URL नहीं';render();return}
   try{
     const [hb,live]=await Promise.all([get('hb'),get('live')]);
@@ -191,12 +204,13 @@ async function load(full){
       const [ev,cy]=await Promise.all([get('events','orderBy=%22$key%22&limitToLast=80'),get('cycles','orderBy=%22$key%22&limitToLast=400')]);
       ST.events=Object.values(ev||{}).sort((a,b)=>b.t-a.t);
       ST.cycles=Object.values(cy||{}).sort((a,b)=>b.end-a.end);
+      try{ST.notes=await get('notes')||{};if(!Object.keys(ST.notes).length)await seedNotes()}catch(e){}
     }
     if(full||Date.now()-ST.vpsAt>60000){
       ST.vpsAt=Date.now();
       try{ST.vps=await getRaw('copytrade/vps');ST.vpsErr=''}catch(e){ST.vpsErr=e.message}
     }
-    try{localStorage.setItem(LSC,JSON.stringify({key:CFG.key,hb:ST.hb,live:ST.live,events:ST.events.slice(0,80),cycles:ST.cycles.slice(0,400)}))}catch(e){}
+    try{localStorage.setItem(LSC,JSON.stringify({key:CFG.key,hb:ST.hb,live:ST.live,events:ST.events.slice(0,80),cycles:ST.cycles.slice(0,400),notes:ST.notes}))}catch(e){}
   }catch(e){ST.err=e.message}
   render();
 }
@@ -419,9 +433,10 @@ function banner(){
   return `<div class="ban g" ${go}>🟢<span>सब ठीक</span>›</div>`;
 }
 function vCheck(){
-  const D=diag(),h=ST.hb||{},c=cfgOf(),icon={r:'🔴',y:'🟡',g:'🟢'};
+  const D=diag(),h=ST.hb||{},c=cfgOf(),icon={r:'🔴',y:'🟡',g:'🟢'};LASTD=D;
+  const addB=x=>x.l==='g'?'':`<button class="addn" onclick="noteFromDiag(${D.indexOf(x)})">➕ सुधार सूची में</button>`;
   const sec=(g,title)=>{const L=D.filter(x=>x.g===g).sort((a,b)=>'ryg'.indexOf(a.l)-'ryg'.indexOf(b.l));
-    return `<div class="card"><h3>${title}</h3>${L.length?L.map(x=>`<div class="ck ${x.l}"><span>${icon[x.l]}</span><div><b>${x.t}</b>${x.d?'<small>'+x.d+'</small>':''}</div></div>`).join(''):'<div class="ck"><span>🟢</span><div><b>सब ठीक</b></div></div>'}</div>`};
+    return `<div class="card"><h3>${title}</h3>${L.length?L.map(x=>`<div class="ck ${x.l}"><span>${icon[x.l]}</span><div><b>${x.t}</b>${x.d?'<small>'+x.d+'</small>':''}${addB(x)}</div></div>`).join(''):'<div class="ck"><span>🟢</span><div><b>सब ठीक</b></div></div>'}</div>`};
   let out=sec('A','A · EA / MT5 हाल');
   // VPS compile
   const vf=vpsFiles();
@@ -443,17 +458,67 @@ function vCheck(){
     <div class="tile"><small>Margin level</small><b class="mono ${h.ml>0&&h.ml<200?'neg':''}">${h.ml>0?(+h.ml).toFixed(0)+'%':'—'}</b></div>
     <div class="tile"><small>Free margin</small><b class="mono">${usd0(h.fm)}</b></div>
     <div class="tile"><small>Spread</small><b class="mono">${runs().map(L=>L.sp==null?'—':(+L.sp).toFixed(L.dg||2)).join(' / ')||'—'}</b></div></div>
-    ${D.filter(x=>x.g==='D').map(x=>`<div class="ck ${x.l}" style="margin-top:6px"><span>${icon[x.l]}</span><div><b>${x.t}</b>${x.d?'<small>'+x.d+'</small>':''}</div></div>`).join('')}</div>`;
+    ${D.filter(x=>x.g==='D').map(x=>`<div class="ck ${x.l}" style="margin-top:6px"><span>${icon[x.l]}</span><div><b>${x.t}</b>${x.d?'<small>'+x.d+'</small>':''}${addB(x)}</div></div>`).join('')}</div>`;
   const er=h.errs||[];
   out+=`<div class="card"><h3>EA की गलतियाँ (आखिरी 20)</h3>${er.length?er.map(e=>`<div class="ev"><span class="t">${dm(e.t)} ${hm(e.t)}</span><span>${esc(e.m)}</span></div>`).join(''):`<div class="empty">${parseFloat(h.v||0)>=9?'कोई गलती नहीं ✓':'v9.0 से दिखेगा'}</div>`}</div>`;
   const hl=h.haal||[];
   out+=`<div class="card"><h3>S6 HAAL (हर 10 sec · आखिरी 30)</h3>${hl.length?`<div class="lg"><div><b>समय · pair · खुले · पक्का · net (+$${c.net} पर बंद) · hedge</b></div>${hl.map(x=>`<div>${hm(x.t)}:${String(new Date(x.t).getSeconds()).padStart(2,'0')} · ${esc(x.s)} · <span class="${cls(x.o)}">${usd(x.o)}</span> · ${usd(x.b)} · <b class="${cls(x.n)}">${usd(x.n)}</b> · ${x.h}</div>`).join('')}</div>`
     :`<div class="empty">${parseFloat(h.v||0)>=9?'cycle चलने पर दिखेगा':'v9.0 से दिखेगा'}</div>`}</div>`;
-  return out;
+  return out+vNotes();
+}
+
+/* ---------- v2.2.0: 📝 SUDHAR SOOCHI (Firebase notes/) ---------- */
+const SEED=[
+  ['n_news','i','News नियम: high-impact news के ±30 min नया main trade नहीं — पूरा बंद करना है या सिर्फ़ चेतावनी? (आपका जवाब बाकी)'],
+  ['n_stuck','y','लंबी एक-तरफ़ा चाल में नीचे की जोड़ी अटकती है; Basket SL −$60 महीने में 2-3 बार लग सकता है — कोई और बचाव?'],
+  ['n_friday','i','Friday को बाज़ार बंद होने तक cycle खुला रहे तो कोई नियम नहीं (weekend gap का जोखिम)'],
+  ['n_hist','i','पुराने cycles की जाँच: नियम पूरा होकर भी देर से बंद हुआ हो तो HISTORY में भी पकड़ना'],
+  ['n_v90','r','v9.0 का VPS पर compile + असली account पर चलना अभी पक्का नहीं — CHECK में देखो']];
+const NK={r:['🔴','गड़बड़'],y:['🟡','मिसमैच'],i:['💡','सुधार']}, NS={open:'खुला',next:'अगले version में',done:'हो गया'};
+let NKIND='r', LASTD=[];
+async function seedNotes(){
+  const k='s6notes_seed_'+CFG.key;try{if(localStorage.getItem(k))return}catch(e){}
+  const o={};SEED.forEach((x,i)=>o[x[0]]={t:Date.now()-i*1000,k:x[1],m:x[2],st:'open',ver:'',src:'shuru'});
+  await send('notes','PATCH',o);ST.notes=Object.assign({},o,ST.notes);try{localStorage.setItem(k,'1')}catch(e){}
+}
+async function noteSave(id,obj){                       // obj null = hatao
+  if(!ST.notes)ST.notes={};
+  const old=ST.notes[id];if(obj)ST.notes[id]=obj;else delete ST.notes[id];render();
+  if(DEMO)return true;
+  try{await send('notes/'+id,obj?'PUT':'DELETE',obj);return true}
+  catch(e){if(old)ST.notes[id]=old;else delete ST.notes[id];render();toast(e.message==='PERM'?'सेव नहीं — Auth जाँचो':'सेव नहीं: '+e.message);return false}
+}
+function noteAdd(k,m,src){
+  m=String(m||'').trim().slice(0,500);if(!m){toast('पहले लिखो');return}
+  const same=Object.values(ST.notes||{}).find(x=>x.st!=='done'&&x.m===m);if(same){toast('ये पहले से सूची में है');return}
+  noteSave('n'+Date.now(),{t:Date.now(),k,m,st:'open',ver:'',src:src||'haath'}).then(ok=>{if(ok){toast('सूची में जुड़ गया ✓');const t=$('nTxt');if(t&&src!=='check')t.value=''}});
+}
+function noteFromDiag(i){const x=LASTD[i];if(!x)return;const tx=s=>String(s).replace(/<[^>]*>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+  noteAdd(x.l==='r'?'r':'y',tx(x.t)+(x.d?' — '+tx(x.d):'')+' ('+dm(Date.now())+' '+hm(Date.now())+')','check')}
+function noteStep(id){const n=ST.notes&&ST.notes[id];if(!n)return;
+  const st=n.st==='open'?'next':n.st==='next'?'done':'open';let ver=n.ver||'';
+  if(st==='done'){const v=prompt('किस version में ठीक हुआ? (जैसे EA v9.1 / app v2.3.0)',ST.hb&&ST.hb.v?'EA v'+ST.hb.v:'');if(v===null)return;ver=String(v).trim().slice(0,40)}
+  if(st==='open')ver='';
+  noteSave(id,Object.assign({},n,{st,ver,at:Date.now()}))}
+function noteDel(id){if(confirm('ये point हटाना है?'))noteSave(id,null)}
+function vNotes(){
+  const all=Object.entries(ST.notes||{}).map(([id,n])=>Object.assign({id},n)).sort((a,b)=>({open:0,next:1,done:2}[a.st]||0)-({open:0,next:1,done:2}[b.st]||0)||b.t-a.t);
+  const cnt=st=>all.filter(x=>x.st===st).length,list=ST.nf==='all'?all:all.filter(x=>x.st!=='done');
+  return `<div class="card" id="notes"><h3>📝 सुधार सूची · ${cnt('open')} खुले · ${cnt('next')} अगले version में · ${cnt('done')} हो गए</h3>
+    <div class="seg">${[['r','🔴 गड़बड़'],['y','🟡 मिसमैच'],['i','💡 सुधार']].map(([k,l])=>`<button class="${NKIND===k?'on':''}" onclick="NKIND='${k}';render()">${l}</button>`).join('')}</div>
+    <textarea id="nTxt" placeholder="क्या गड़बड़ / क्या मेल नहीं खा रहा / क्या सुधार चाहिए…"></textarea>
+    <div class="btns" style="margin-top:8px"><button class="btn pk" onclick="noteAdd(NKIND,$('nTxt').value,'haath')">सूची में जोड़ो</button></div>
+    <div class="seg" style="margin-top:12px">${[['open','खुले + अगले'],['all','सब (हो गए भी)']].map(([k,l])=>`<button class="${ST.nf===k?'on':''}" onclick="ST.nf='${k}';render()">${l}</button>`).join('')}</div>
+    ${list.length?list.map(n=>`<div class="nt ${n.st}"><span>${(NK[n.k]||NK.i)[0]}</span><div><span class="m">${esc(n.m)}</span>
+      <small>${(NK[n.k]||NK.i)[1]} · ${dm(n.t)} ${hm(n.t)}${n.src==='check'?' · CHECK से':n.src==='shuru'?' · शुरुआती सूची':''}${n.st==='done'&&n.ver?' · ठीक हुआ: '+esc(n.ver):''}</small></div>
+      <div><button class="chip ${n.st}" onclick="noteStep('${n.id}')">${NS[n.st]||n.st}</button><button class="chip del" onclick="noteDel('${n.id}')">हटाओ</button></div></div>`).join('')
+      :'<div class="empty">कोई point नहीं</div>'}
+    <div class="note" style="margin-top:8px">हाल बदलने के लिए बटन दबाओ: खुला → अगले version में → हो गया। Firebase में सेव होता है, नया version बनाते समय यही सूची देखी जाएगी।</div></div>`;
 }
 const TABS=[['live','📡','LIVE'],['ladder','🪜','LADDER'],['risk','⚠️','RISK'],['history','📜','HISTORY'],['check','🩺','CHECK'],['setup','⚙️','SETUP']];
 function render(){
   status();
+  const ae=document.activeElement;if(ae&&ae.id==='nTxt'&&CFG.tab==='check')return;   // likhte waqt dobara na banao
   $('nav').innerHTML=TABS.map(([k,i,l])=>`<button class="${CFG.tab===k?'on':''}" onclick="CFG.tab='${k}';saveCfg();render()"><b>${i}</b>${l}</button>`).join('');
   let h=DEMO?'<div class="demo">DEMO — नकली data (असली के लिए SETUP)</div>':'';
   if(!DEMO&&CFG.tab!=='setup'){
