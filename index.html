@@ -17,6 +17,8 @@
 <title>S6 LIVE</title>
 <!--
   S6 LIVE v2.1.0 (2026-11-27) — PERSONAL FX v9.0 Strategy 6 (hedge ladder) ka mobile monitor (PWA).
+  v2.4.0: EA v9.1 ke liye - CHECK me lock chalu +$1.20 aur nayi 'jodi ghate me band -$2' setting; aage ka andaaza
+          me jodi -$2 niyam bhi.
   v2.3.0: LIVE me 🔮 AAGE KA ANDAAZA - cycle band equity (shuru balance + net / balance + basket / cycle), Basket SL
           equity line, seedhi chaal upar / neeche kis bhaav par kaunsa niyam (simulation). Har live update par badalta hai.
   v2.2.2: sudhar soochi me "level khali rehna" (EA v9.1 ke liye, haal: agle version me) ek baar apne aap.
@@ -147,7 +149,7 @@ textarea{width:100%;min-height:70px;border-radius:12px;border:1px solid var(--pk
 <div id="toast"></div>
 <script>
 'use strict';
-const VER='2.3.0';
+const VER='2.4.0';
 const DEF_FB='https://forexdiagnosis-default-rtdb.asia-southeast1.firebasedatabase.app';
 const LS='s6live_cfg', LSC='s6live_cache';
 const $=id=>document.getElementById(id);
@@ -182,11 +184,11 @@ async function get(path,q){const r=await fetch(url(path,q),{cache:'no-store'});i
 /* ---------- demo data (?demo=1) ---------- */
 function demoData(){
   const now=Date.now(),o=3571.48,b=3559.2;
-  ST.hb={at:now,v:'9.0',strat:6,ta:true,ea:true,conn:true,ping:38,ml:2490.5,fm:4768.3,liveOn:true,push:5,manual:true,bal:4980.85,eq:4968.1,cur:'USD',demo:true,
-    cfg:{tp:3,gap:3,hlot:0.01,basket:5,cycle:3,net:6,sl:60,lock:1,arm:2,ahead:5},
+  ST.hb={at:now,v:'9.1',strat:6,ta:true,ea:true,conn:true,ping:38,ml:2490.5,fm:4768.3,liveOn:true,push:5,manual:true,bal:4980.85,eq:4968.1,cur:'USD',demo:true,
+    cfg:{tp:3,gap:3,hlot:0.01,basket:5,cycle:3,net:6,sl:60,lock:1,arm:1.2,ahead:5,ploss:2},
     errs:[{t:now-42*60e3,m:'pending FAIL level 6 XAUUSDm @ 3553.480 [10016] Invalid stops'},{t:now-3*3600e3,m:'Firebase WebRequest error 5203'}],
     haal:Array.from({length:30},(_,i)=>({t:now-i*10e3,s:'XAUUSDm',o:+(-6.4+i*0.11).toFixed(2),b:2.1,n:+(-4.3+i*0.11).toFixed(2),h:4}))};
-  ST.vps={v:'1.07',at:Math.round(now/1000)-70,commit:'303971f',err:'',terms:[{name:'MetaTrader 5 EXNESS',run:true,files:[{f:'PERSONAL FX v9.0 - GRID.mq5',ok:true,ne:0,nw:2,at:Math.round(now/1000)-300,msg:['0 errors, 2 warnings']}]}]};
+  ST.vps={v:'1.07',at:Math.round(now/1000)-70,commit:'303971f',err:'',terms:[{name:'MetaTrader 5 EXNESS',run:true,files:[{f:'PERSONAL FX v9.1 - GRID.mq5',ok:true,ne:0,nw:2,at:Math.round(now/1000)-300,msg:['0 errors, 2 warnings']}]}]};
   ST.live={XAUUSDm:{at:now,state:'RUN',sym:'XAUUSDm',dg:3,dir:'BUY',lot:0.02,open:o,tp:0,bid:b,ask:b+0.2,sp:0.2,gapPx:3,mpl:(b-o)*2,
     hedges:[{n:1,o:3568.48,pl:9.08,lot:0.01,a:1},{n:2,o:3565.48,pl:6.08,lot:0.01,a:1},{n:3,o:3562.48,pl:3.08,lot:0.01,a:1},{n:4,o:3559.48,pl:0.08,lot:0.01,a:0}],
     pend:[{n:5,p:3556.48},{n:6,p:3553.48},{n:7,p:3550.48},{n:8,p:3547.48},{n:9,p:3544.48}],banked:2.1,start:now-54*60000,nh:4,used:6,dd:-14.2,bal:4980.85,eq:4968.1}};
@@ -222,7 +224,7 @@ async function load(full){
 /* ---------- views ---------- */
 const runs=()=>Object.values(ST.live||{}).filter(x=>x&&x.state==='RUN');
 const idles=()=>Object.values(ST.live||{}).filter(x=>x&&x.state==='IDLE');
-const cfgOf=()=>Object.assign({tp:3,gap:3,basket:5,cycle:3,net:6,sl:60,lock:1,arm:2,ahead:5},(ST.hb&&ST.hb.cfg)||{});
+const cfgOf=()=>Object.assign({tp:3,gap:3,basket:5,cycle:3,net:6,sl:60,lock:1,arm:2,ahead:5,ploss:0},(ST.hb&&ST.hb.cfg)||{});
 function online(){return ST.hb&&ST.hb.at&&Date.now()-ST.hb.at<90000}
 
 function status(){
@@ -278,7 +280,8 @@ function simMove(L,c,s){                 // s = +1 bhaav upar, -1 neeche
       const d1=H[H.length-1],p1=plH(d1,P);
       if(d1.a&&p1<=lockF(d1.lot)){banked+=p1;H.pop();pairA=false;continue}
       if(!d1.a&&H.length>=2){const d2=H[H.length-2],cb=p1+plH(d2,P);if(cb>lockF(d1.lot))pairA=true;
-        if(pairA&&cb<=lockF(d1.lot)){banked+=cb;H.pop();H.pop();pairA=false;continue}}
+        if(pairA&&cb<=lockF(d1.lot)){banked+=cb;H.pop();H.pop();pairA=false;continue}
+        if(!pairA&&c.ploss>0&&cb<=-c.ploss*((d1.lot+d2.lot)/0.02)){banked+=cb;H.pop();H.pop();continue}}   // v9.1: jodi -$2 par band
       break}
     const m=mpl(P),tot=m+H.reduce((a,h)=>a+plH(h,P),0),net=banked+tot;
     if(tot<worst){worst=tot;worstP=P}
@@ -414,7 +417,7 @@ function vSetup(){
     <label>Live key<small>EA input S6_LiveKey (default s6)</small></label><input id="sKey" value="${esc(CFG.key)}" autocomplete="off">
     <label>हर कितने sec update</label><input id="sSec" type="number" min="2" max="60" value="${CFG.sec}">
     <div class="btns"><button class="btn pk" onclick="saveSetup()">सेव + जाँच</button><button class="btn gh" onclick="location.search='?demo=1'">Demo देखो</button></div></div>
-    <div class="card"><h3>EA पर (VPS)</h3><div class="note">1. PERSONAL FX <b>v9.0</b> chart पर, <b>Strategy = 6</b>.<br>2. Inputs: <b>S6_LiveOn = true</b>, <b>S6_LiveKey</b> = ऊपर वाली key, FirebaseAuth भरा हुआ.<br>
+    <div class="card"><h3>EA पर (VPS)</h3><div class="note">1. PERSONAL FX <b>v9.1</b> chart पर, <b>Strategy = 6</b>.<br>2. Inputs: <b>S6_LiveOn = true</b>, <b>S6_LiveKey</b> = ऊपर वाली key, FirebaseAuth भरा हुआ.<br>
     3. MT5 → Tools → Options → Expert Advisors → WebRequest में Firebase URL (पहले से app bridge के लिए है).<br>4. Account number Firebase में नहीं जाता; balance / equity जाते हैं (Auth के पीछे).</div>
     <div class="note" style="margin-top:8px">S6 LIVE v${VER}</div></div>`;
 }
@@ -428,8 +431,8 @@ async function saveSetup(){
 
 
 /* ---------- v2.1.0: 🩺 CHECK ---------- */
-const WANT={strat:[6,'Strategy'],sl:[60,'Basket SL $'],arm:[2,'Lock चालू (+$)'],lock:[1,'Lock बंद (+$)'],ahead:[5,'Pending आगे'],net:[6,'Net (पक्का+खुले) $'],
-  tp:[3,'Main TP $ / 0.01'],gap:[3,'Gap $'],hlot:[0.01,'Hedge lot'],basket:[5,'Basket TP $'],cycle:[3,'Cycle TP $']};
+const WANT={strat:[6,'Strategy'],sl:[60,'Basket SL $'],arm:[1.2,'Lock चालू (+$)'],lock:[1,'Lock बंद (+$)'],ahead:[5,'Pending आगे'],net:[6,'Net (पक्का+खुले) $'],
+  ploss:[2,'जोड़ी घाटे में बंद (−$)'],tp:[3,'Main TP $ / 0.01'],gap:[3,'Gap $'],hlot:[0.01,'Hedge lot'],basket:[5,'Basket TP $'],cycle:[3,'Cycle TP $']};
 function ruleOf(L,c){
   if(c.net>0&&L.net>=c.net)return 'Net '+usd(L.net)+' ≥ +$'+c.net;
   if(!L.nh){const t=c.tp*(L.lot/0.01);return t>0&&L.mpl>=t?'Main TP '+usd(L.mpl)+' ≥ +$'+t:''}
@@ -455,11 +458,11 @@ function vpsFiles(){             // har terminal me sabse naya PERSONAL FX file 
 }
 function diag(){                 // [{l:'r'|'y'|'g', g:'A'..'D', t, d}]
   const D=[],add=(l,g,t,d)=>D.push({l,g,t,d:d||''}),h=ST.hb,c=cfgOf();
-  if(!h){add('r','A','EA का data नहीं आया','PERSONAL FX v9.0 chart पर लगाओ, S6_LiveOn = true, SETUP में key जाँचो');return D}
+  if(!h){add('r','A','EA का data नहीं आया','PERSONAL FX v9.1 chart पर लगाओ, S6_LiveOn = true, SETUP में key जाँचो');return D}
   const age=Date.now()-(h.at||0),v=parseFloat(h.v||'0');
   if(age>90000)add('r','A','EA बंद / data रुका — '+ago(h.at)+' पहले','MT5 / VPS चालू है? EA chart पर है? इंटरनेट?');
   else add('g','A','EA चालू · v'+(h.v||'—'),'data '+ago(h.at)+' पहले');
-  if(v<9)add('y','A','EA पुराना (v'+(h.v||'—')+') — v9.0 लगाओ','v9.0 के बिना MT5 / setting / गलती की जाँच अधूरी');
+  if(v<9.1)add('y','A','EA पुराना (v'+(h.v||'—')+') — v9.1 लगाओ',v<9?'v9.0 के बिना MT5 / setting / गलती की जाँच अधूरी':'v9.1: जोड़ी −$2 पर बंद + lock +$1.20 (backtest में बेहतर)');
   if(v>=9){
     if(h.strat!=null&&+h.strat!==6)add('r','B','Strategy = '+h.strat+' (6 होना चाहिए)','EA inputs में Strategy = 6');
     if(h.ta===false)add('r','A','MT5 में Algo Trading बंद','ऊपर toolbar का "Algo Trading" बटन हरा करो');
@@ -621,7 +624,7 @@ function render(){
   if(!DEMO&&CFG.tab!=='setup'){
     if(ST.err==='PERM')h+=`<div class="card"><div class="empty">🔐 Firebase ने मना किया — SETUP में <b>Firebase Auth</b> डालो।</div></div>`;
     else if(ST.err&&!ST.hb)h+=`<div class="card"><div class="empty">⚠️ ${esc(ST.err)}</div></div>`;
-    else if(!ST.hb)h+=`<div class="card"><div class="empty">EA का data अभी नहीं आया।<br>PERSONAL FX v9.0 (Strategy 6, S6_LiveOn = true) चालू करो।<br>SETUP में key "${esc(CFG.key)}" जाँचो।</div></div>`;
+    else if(!ST.hb)h+=`<div class="card"><div class="empty">EA का data अभी नहीं आया।<br>PERSONAL FX v9.1 (Strategy 6, S6_LiveOn = true) चालू करो।<br>SETUP में key "${esc(CFG.key)}" जाँचो।</div></div>`;
   }
   if(CFG.tab!=='setup')h+=banner();
   h+=({live:vLive,ladder:vLadder,risk:vRisk,history:vHistory,check:vCheck,setup:vSetup}[CFG.tab]||vLive)();
