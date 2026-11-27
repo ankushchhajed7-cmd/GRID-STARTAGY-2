@@ -7,7 +7,7 @@ Live: https://ankushchhajed7-cmd.github.io/GRID-STARTAGY-2/  ·  Preview bina EA
 
 | File | Kaam |
 |---|---|
-| `index.html` | App (LIVE · LADDER · RISK · HISTORY · 🩺 CHECK · SETUP) — CHECK: EA / MT5 haal, VPS compile, setting, niyam chetavni, EA galti, HAAL log |
+| `index.html` | App (LIVE · LADDER · RISK · HISTORY · 🩺 CHECK · SETUP) — CHECK: EA / MT5 haal, VPS compile, setting, niyam chetavni, EA galti, HAAL log, 📝 sudhar soochi (Firebase `notes/`) |
 | `manifest.json`, `sw.js`, `icon-*.png` | Install + offline |
 
 **Data:** PERSONAL FX **v9.0** (repo Samusignal, `vps-ea/`) Firebase `/personalfx/s6live/<S6_LiveKey>/` me likhta hai:
